@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   calculateAqi,
   getAqiCategory,
-  getGrapAdvisories,
+  getRegionalAdvisories,
 } from '@/lib/aqi-utils';
 import type { AqiResponse, PollutantLevels } from '@/types/air-quality';
 
@@ -304,7 +304,7 @@ export async function GET(request: NextRequest) {
       },
       source: 'Severe Smog Simulator',
       timestamp: new Date().toISOString(),
-      advisories: getGrapAdvisories(aqi),
+      advisories: getRegionalAdvisories(aqi, city),
       simulated: true,
     };
     return NextResponse.json(response);
@@ -314,7 +314,7 @@ export async function GET(request: NextRequest) {
   if (cpcb) {
     return NextResponse.json({
       ...cpcb,
-      advisories: getGrapAdvisories(cpcb.aqi),
+      advisories: getRegionalAdvisories(cpcb.aqi, city),
       simulated: false,
     } satisfies AqiResponse);
   }
@@ -323,7 +323,7 @@ export async function GET(request: NextRequest) {
   if (openAq) {
     return NextResponse.json({
       ...openAq,
-      advisories: getGrapAdvisories(openAq.aqi),
+      advisories: getRegionalAdvisories(openAq.aqi, city),
       simulated: false,
     } satisfies AqiResponse);
   }
@@ -331,7 +331,7 @@ export async function GET(request: NextRequest) {
   const fallback = buildUrbanFallback(state, city, town);
   return NextResponse.json({
     ...fallback,
-    advisories: getGrapAdvisories(fallback.aqi),
+    advisories: getRegionalAdvisories(fallback.aqi, city),
     simulated: false,
   } satisfies AqiResponse);
 }

@@ -6,24 +6,35 @@ import {
   ArrowRight,
   Building2,
   Check,
+  Clock,
   GraduationCap,
+  HeartPulse,
+  Home,
   MapPin,
-  Minus,
-  Plus,
+  Navigation,
   ShieldCheck,
   Users,
   Wind,
 } from 'lucide-react';
-import type {
-  BudgetTier,
-  CommuteType,
-  ExerciseHabit,
-  HealthSensitivity,
-  IndustryProfile,
-  PersonalProfile,
-  SchoolProfile,
-  SupportMode,
-  UserProfile,
+import {
+  EXISTING_PROTECTIONS,
+  HEALTH_SENSITIVITIES,
+  HOME_SURROUNDINGS,
+  HOUSEHOLD_MEMBERS,
+  INDIAN_CITIES,
+  STEP_OUT_WINDOWS,
+  TRAVEL_MODES,
+  type ExistingProtection,
+  type HealthSensitivity,
+  type HomeSurrounding,
+  type HouseholdMember,
+  type IndianCity,
+  type IndustryProfile,
+  type SchoolProfile,
+  type StepOutWindow,
+  type SupportMode,
+  type TravelMode,
+  type UserProfile,
 } from '@/types/air-quality';
 
 interface OnboardingWizardProps {
@@ -32,20 +43,10 @@ interface OnboardingWizardProps {
   onCancel?: () => void;
 }
 
-const DEFAULT_PERSONAL: PersonalProfile = {
-  adults: 2,
-  children: 1,
-  seniors: 0,
-  sensitivity: 'None',
-  commute: 'Metro/Bus',
-  exerciseHabit: '3x/Week',
-};
-
 const DEFAULT_SCHOOL: SchoolProfile = {
   studentGroup: 'Middle & High (Ages 11-17)',
   indoorSportsHall: 'Yes',
   outdoorSportsSchedule: 'Morning Assembly & PT',
-  dropoffType: 'School Bus Fleet',
 };
 
 const DEFAULT_INDUSTRY: IndustryProfile = {
@@ -54,72 +55,53 @@ const DEFAULT_INDUSTRY: IndustryProfile = {
   dieselFleetUsage: 'Backup DG Only',
 };
 
-function StepPill({
+function TapChip({
   active,
   label,
+  multi = false,
   onClick,
 }: {
   active: boolean;
   label: string;
+  multi?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`px-3.5 py-2 rounded-full text-sm font-medium transition-all border cursor-pointer ${
+      className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium transition-all border cursor-pointer ${
         active
           ? 'bg-sky-500 text-white border-sky-400 shadow-sm shadow-sky-500/25'
           : 'bg-slate-800/70 text-slate-300 border-slate-700 hover:border-slate-500 hover:text-white'
       }`}
     >
-      {label}
+      {multi && active && <Check className="h-3.5 w-3.5 shrink-0" />}
+      <span>{label}</span>
     </button>
   );
 }
 
-function Counter({
-  label,
-  sublabel,
-  value,
-  min = 0,
-  onChange,
-}: {
-  label: string;
-  sublabel: string;
-  value: number;
-  min?: number;
-  onChange: (next: number) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-2xl bg-slate-800/60 border border-slate-700/80 px-4 py-3">
-      <div>
-        <div className="text-sm font-semibold text-white">{label}</div>
-        <div className="text-xs text-slate-400">{sublabel}</div>
-      </div>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => onChange(Math.max(min, value - 1))}
-          aria-label={`Decrease ${label}`}
-          className="h-9 w-9 rounded-full bg-slate-700/80 hover:bg-slate-600 text-white flex items-center justify-center transition cursor-pointer"
-        >
-          <Minus className="h-4 w-4" />
-        </button>
-        <span className="w-6 text-center text-base font-bold text-white tabular-nums">
-          {value}
-        </span>
-        <button
-          type="button"
-          onClick={() => onChange(Math.min(20, value + 1))}
-          aria-label={`Increase ${label}`}
-          className="h-9 w-9 rounded-full bg-sky-500 hover:bg-sky-400 text-white flex items-center justify-center transition cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
+function toggleMulti<T extends string>(
+  current: T[],
+  item: T,
+  exclusiveItem?: T
+): T[] {
+  if (exclusiveItem && item === exclusiveItem) {
+    return [exclusiveItem];
+  }
+  const withoutExclusive = exclusiveItem
+    ? current.filter((v) => v !== exclusiveItem)
+    : [...current];
+
+  if (withoutExclusive.includes(item)) {
+    const next = withoutExclusive.filter((v) => v !== item);
+    if (next.length === 0 && exclusiveItem) {
+      return [exclusiveItem];
+    }
+    return next;
+  }
+  return [...withoutExclusive, item];
 }
 
 export default function OnboardingWizard({
@@ -132,51 +114,98 @@ export default function OnboardingWizard({
   const [mode, setMode] = useState<SupportMode>(
     initialProfile?.mode ?? 'personal'
   );
-  const [stateName, setStateName] = useState(
-    initialProfile?.location?.state ?? ''
+  const [city, setCity] = useState<IndianCity | string>(
+    initialProfile?.location?.city || 'New Delhi'
   );
-  const [cityName, setCityName] = useState(
-    initialProfile?.location?.city ?? ''
-  );
-  const [townName, setTownName] = useState(
-    initialProfile?.location?.town ?? ''
-  );
-  const [locationError, setLocationError] = useState('');
+  const [town, setTown] = useState(initialProfile?.location?.town ?? '');
 
-  const [personal, setPersonal] = useState<PersonalProfile>(
-    initialProfile?.personal ?? DEFAULT_PERSONAL
+  const [stepOutWindows, setStepOutWindows] = useState<StepOutWindow[]>(
+    initialProfile?.stepOutWindows?.length
+      ? initialProfile.stepOutWindows
+      : ['Office / College Hours (9 AM–6 PM)']
   );
+  const [travelModes, setTravelModes] = useState<TravelMode[]>(
+    initialProfile?.travelModes?.length
+      ? initialProfile.travelModes
+      : ['Metro / Local Train']
+  );
+  const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>(
+    initialProfile?.householdMembers?.length
+      ? initialProfile.householdMembers
+      : ['Just Me']
+  );
+  const [healthSensitivities, setHealthSensitivities] = useState<
+    HealthSensitivity[]
+  >(
+    initialProfile?.healthSensitivities?.length
+      ? initialProfile.healthSensitivities
+      : ['None']
+  );
+  const [homeSurroundings, setHomeSurroundings] = useState<HomeSurrounding[]>(
+    initialProfile?.homeSurroundings?.length
+      ? initialProfile.homeSurroundings
+      : ['Quiet Residential / Gated']
+  );
+  const [existingProtection, setExistingProtection] = useState<
+    ExistingProtection[]
+  >(
+    initialProfile?.existingProtection?.length
+      ? initialProfile.existingProtection
+      : ['None (Zero-Cost Tips Only)']
+  );
+
   const [school, setSchool] = useState<SchoolProfile>(
     initialProfile?.school ?? DEFAULT_SCHOOL
   );
   const [industry, setIndustry] = useState<IndustryProfile>(
     initialProfile?.industry ?? DEFAULT_INDUSTRY
   );
-  const [budget, setBudget] = useState<BudgetTier>(
-    initialProfile?.budget ?? 'Zero-Cost Household Changes'
-  );
+  const [stepError, setStepError] = useState('');
 
   const handleStep1Next = () => {
-    if (!cityName.trim() && !townName.trim()) {
-      setLocationError('Please enter at least your City or Town to fetch local AQI.');
+    if (!city) {
+      setStepError('Please pick your city.');
       return;
     }
-    setLocationError('');
+    if (stepOutWindows.length === 0) {
+      setStepError('Please pick at least one time you usually step out.');
+      return;
+    }
+    setStepError('');
     setStep(2);
   };
 
+  const handleStep2Next = () => {
+    if (travelModes.length === 0) {
+      setStepError('Please pick at least one way you travel.');
+      return;
+    }
+    setStepError('');
+    setStep(3);
+  };
+
   const handleFinish = () => {
+    if (homeSurroundings.length === 0) {
+      setStepError('Please pick at least one option for your home surroundings.');
+      return;
+    }
     const profile: UserProfile = {
       mode,
       location: {
-        state: stateName.trim(),
-        city: cityName.trim(),
-        town: townName.trim(),
+        city,
+        town: town.trim() || undefined,
       },
-      personal: mode === 'personal' ? personal : undefined,
+      stepOutWindows,
+      travelModes,
+      householdMembers,
+      healthSensitivities,
+      homeSurroundings,
+      existingProtection:
+        existingProtection.length > 0
+          ? existingProtection
+          : ['None (Zero-Cost Tips Only)'],
       school: mode === 'school' ? school : undefined,
       industry: mode === 'industry' ? industry : undefined,
-      budget,
       updatedAt: new Date().toISOString(),
     };
     onComplete(profile);
@@ -193,10 +222,10 @@ export default function OnboardingWizard({
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight text-white">
-                SmogSense Personalization
+                SmogSense Daily Routine Setup
               </h1>
               <p className="text-xs text-slate-400">
-                2-minute tap setup · Saved locally · Zero login
+                Tap everything that applies · Saved locally · Zero login
               </p>
             </div>
           </div>
@@ -225,509 +254,394 @@ export default function OnboardingWizard({
         </div>
 
         <div className="p-6 space-y-6">
-          {/* STEP 1: LOCATION + SUPPORT TYPE */}
+          {/* STEP 1: CITY + SUPPORT MODE + STEP OUT WINDOWS */}
           {step === 1 && (
             <div className="space-y-6">
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <MapPin className="h-4 w-4 text-sky-400" />
                   <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                    Your Location (for exact local AQI)
+                    Your City (Single-Select)
                   </h2>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">
-                      State / Region
-                    </label>
-                    <input
-                      type="text"
-                      value={stateName}
-                      onChange={(e) => setStateName(e.target.value)}
-                      placeholder="e.g., Central Region"
-                      className="w-full rounded-xl bg-slate-800/80 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+                <div className="flex flex-wrap gap-2">
+                  {INDIAN_CITIES.map((c) => (
+                    <TapChip
+                      key={c}
+                      label={c}
+                      active={city === c}
+                      onClick={() => setCity(c)}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">
-                      City *
-                    </label>
-                    <input
-                      type="text"
-                      value={cityName}
-                      onChange={(e) => setCityName(e.target.value)}
-                      placeholder="e.g., Metro City"
-                      className="w-full rounded-xl bg-slate-800/80 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">
-                      Town / Locality
-                    </label>
-                    <input
-                      type="text"
-                      value={townName}
-                      onChange={(e) => setTownName(e.target.value)}
-                      placeholder="e.g., North Sector"
-                      className="w-full rounded-xl bg-slate-800/80 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
-                    />
-                  </div>
+                  ))}
                 </div>
-                {locationError && (
-                  <p className="mt-2 text-xs text-rose-400">{locationError}</p>
-                )}
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                    Neighbourhood / Area (optional, for closer station match)
+                  </label>
+                  <input
+                    type="text"
+                    value={town}
+                    onChange={(e) => setTown(e.target.value)}
+                    placeholder="e.g., Indiranagar, Bandra, Jubilee Hills, Rohini"
+                    className="w-full rounded-xl bg-slate-800/80 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+                  />
+                </div>
               </div>
 
               <div>
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-3">
-                  Select Support Type
-                </h2>
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="h-4 w-4 text-sky-400" />
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    Who is this plan for?
+                  </h2>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
                     {
                       id: 'personal' as const,
                       title: 'Personal & Family',
-                      desc: 'Home exposure, commute & respiratory care',
+                      desc: 'Daily commute & home',
                       icon: Users,
                     },
                     {
                       id: 'school' as const,
                       title: 'School & College',
-                      desc: 'Campus sports, assemblies & bus fleets',
+                      desc: 'Classes & outdoor games',
                       icon: GraduationCap,
                     },
                     {
                       id: 'industry' as const,
-                      title: 'Industry & Workplace',
-                      desc: 'Shifts, outdoor crews & DG/fleet protocols',
+                      title: 'Workplace & Site',
+                      desc: 'Shifts & team safety',
                       icon: Building2,
                     },
                   ].map((item) => {
                     const Icon = item.icon;
-                    const selected = mode === item.id;
+                    const active = mode === item.id;
                     return (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => setMode(item.id)}
-                        className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${
-                          selected
+                        className={`text-left rounded-2xl p-3.5 border transition-all cursor-pointer ${
+                          active
                             ? 'bg-sky-500/15 border-sky-400 shadow-lg shadow-sky-500/10'
                             : 'bg-slate-800/50 border-slate-700/80 hover:border-slate-500'
                         }`}
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <Icon
-                            className={`h-5 w-5 ${
-                              selected ? 'text-sky-400' : 'text-slate-400'
-                            }`}
-                          />
-                          {selected && (
-                            <span className="h-5 w-5 rounded-full bg-sky-500 text-white flex items-center justify-center">
-                              <Check className="h-3 w-3" />
-                            </span>
-                          )}
-                        </div>
+                        <Icon
+                          className={`h-4 w-4 mb-1.5 ${
+                            active ? 'text-sky-400' : 'text-slate-400'
+                          }`}
+                        />
                         <div className="font-semibold text-sm text-white">
                           {item.title}
                         </div>
-                        <div className="text-xs text-slate-400 mt-1">
-                          {item.desc}
-                        </div>
+                        <div className="text-xs text-slate-400">{item.desc}</div>
                       </button>
                     );
                   })}
                 </div>
               </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-sky-400" />
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                      When You Step Out
+                    </h2>
+                  </div>
+                  <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
+                    Multi-select
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {STEP_OUT_WINDOWS.map((w) => (
+                    <TapChip
+                      key={w}
+                      multi
+                      label={w}
+                      active={stepOutWindows.includes(w)}
+                      onClick={() =>
+                        setStepOutWindows((prev) => toggleMulti(prev, w))
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {stepError && (
+                <p className="text-xs text-rose-400">{stepError}</p>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={handleStep1Next}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-semibold text-sm transition cursor-pointer"
+                >
+                  Next: Travel & Household
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           )}
 
-          {/* STEP 2: DYNAMIC COUNTERS & PILLS */}
-          {step === 2 && mode === 'personal' && (
-            <div className="space-y-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                Household Composition
-              </h2>
-              <div className="grid grid-cols-1 gap-3">
-                <Counter
-                  label="Adults (18-59)"
-                  sublabel="Working & commuting adults"
-                  value={personal.adults}
-                  min={1}
-                  onChange={(v) => setPersonal({ ...personal, adults: v })}
-                />
-                <Counter
-                  label="Children (0-17)"
-                  sublabel="Developing lungs, higher inhalation rate"
-                  value={personal.children}
-                  onChange={(v) => setPersonal({ ...personal, children: v })}
-                />
-                <Counter
-                  label="Seniors (60+)"
-                  sublabel="Higher cardiovascular & respiratory sensitivity"
-                  value={personal.seniors}
-                  onChange={(v) => setPersonal({ ...personal, seniors: v })}
-                />
+          {/* STEP 2: TRAVEL + HOUSEHOLD + HEALTH SENSITIVITIES */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Navigation className="h-4 w-4 text-sky-400" />
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                      How You Travel
+                    </h2>
+                  </div>
+                  <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
+                    Multi-select
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {TRAVEL_MODES.map((t) => (
+                    <TapChip
+                      key={t}
+                      multi
+                      label={t}
+                      active={travelModes.includes(t)}
+                      onClick={() =>
+                        setTravelModes((prev) => toggleMulti(prev, t))
+                      }
+                    />
+                  ))}
+                </div>
               </div>
 
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Health Sensitivities
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-sky-400" />
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                      Who Lives at Home
+                    </h2>
+                  </div>
+                  <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
+                    Multi-select
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {(['None', 'Asthma/Respiratory', 'Cardiac'] as HealthSensitivity[]).map(
-                    (opt) => (
-                      <StepPill
-                        key={opt}
-                        label={opt}
-                        active={personal.sensitivity === opt}
+                  {HOUSEHOLD_MEMBERS.map((m) => (
+                    <TapChip
+                      key={m}
+                      multi
+                      label={m}
+                      active={householdMembers.includes(m)}
+                      onClick={() =>
+                        setHouseholdMembers((prev) =>
+                          toggleMulti(prev, m, 'Just Me')
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <HeartPulse className="h-4 w-4 text-sky-400" />
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                      Health Sensitivities
+                    </h2>
+                  </div>
+                  <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
+                    Multi-select
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {HEALTH_SENSITIVITIES.map((h) => (
+                    <TapChip
+                      key={h}
+                      multi
+                      label={h}
+                      active={healthSensitivities.includes(h)}
+                      onClick={() =>
+                        setHealthSensitivities((prev) =>
+                          toggleMulti(prev, h, 'None')
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {mode === 'school' && (
+                <div className="rounded-2xl bg-slate-800/50 border border-slate-700/80 p-4 space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    School / Campus Quick Details
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        'Primary (Ages 5-10)',
+                        'Middle & High (Ages 11-17)',
+                        'College & University',
+                      ] as const
+                    ).map((g) => (
+                      <TapChip
+                        key={g}
+                        label={g}
+                        active={school.studentGroup === g}
                         onClick={() =>
-                          setPersonal({ ...personal, sensitivity: opt })
+                          setSchool((s) => ({ ...s, studentGroup: g }))
                         }
                       />
-                    )
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Primary Commute
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      'Two-Wheeler/Walk',
-                      'Car',
-                      'Metro/Bus',
-                      'Work From Home',
-                    ] as CommuteType[]
-                  ).map((opt) => (
-                    <StepPill
-                      key={opt}
-                      label={opt}
-                      active={personal.commute === opt}
-                      onClick={() => setPersonal({ ...personal, commute: opt })}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Weekly Outing / Exercise Habit
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      'Daily Outdoor',
-                      '3x/Week',
-                      'Indoor Only',
-                      'Minimal',
-                    ] as ExerciseHabit[]
-                  ).map((opt) => (
-                    <StepPill
-                      key={opt}
-                      label={opt}
-                      active={personal.exerciseHabit === opt}
-                      onClick={() =>
-                        setPersonal({ ...personal, exerciseHabit: opt })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {step === 2 && mode === 'school' && (
-            <div className="space-y-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                Campus & Student Details
-              </h2>
-
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Student Group
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      'Primary (Ages 5-10)',
-                      'Middle & High (Ages 11-17)',
-                      'College & University',
-                    ] as SchoolProfile['studentGroup'][]
-                  ).map((opt) => (
-                    <StepPill
-                      key={opt}
-                      label={opt}
-                      active={school.studentGroup === opt}
-                      onClick={() =>
-                        setSchool({ ...school, studentGroup: opt })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Indoor Sports Hall Available?
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(['Yes', 'No'] as SchoolProfile['indoorSportsHall'][]).map(
-                    (opt) => (
-                      <StepPill
-                        key={opt}
-                        label={opt}
-                        active={school.indoorSportsHall === opt}
+              {mode === 'industry' && (
+                <div className="rounded-2xl bg-slate-800/50 border border-slate-700/80 p-4 space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    Workplace / Site Quick Details
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        'Office & IT Park',
+                        'Manufacturing & Warehouse',
+                        'Construction & Logistics',
+                      ] as const
+                    ).map((f) => (
+                      <TapChip
+                        key={f}
+                        label={f}
+                        active={industry.facilityType === f}
                         onClick={() =>
-                          setSchool({ ...school, indoorSportsHall: opt })
+                          setIndustry((ind) => ({ ...ind, facilityType: f }))
                         }
                       />
-                    )
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Outdoor Sports Schedule
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      'Morning Assembly & PT',
-                      'Afternoon Games',
-                      'Suspended in Smog',
-                    ] as SchoolProfile['outdoorSportsSchedule'][]
-                  ).map((opt) => (
-                    <StepPill
-                      key={opt}
-                      label={opt}
-                      active={school.outdoorSportsSchedule === opt}
-                      onClick={() =>
-                        setSchool({ ...school, outdoorSportsSchedule: opt })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
+              {stepError && (
+                <p className="text-xs text-rose-400">{stepError}</p>
+              )}
 
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  School Bus / Drop-Off Type
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      'School Bus Fleet',
-                      'Private Cars & Vans',
-                      'Walk / Cycle',
-                    ] as SchoolProfile['dropoffType'][]
-                  ).map((opt) => (
-                    <StepPill
-                      key={opt}
-                      label={opt}
-                      active={school.dropoffType === opt}
-                      onClick={() => setSchool({ ...school, dropoffType: opt })}
-                    />
-                  ))}
-                </div>
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStepError('');
+                    setStep(1);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition cursor-pointer"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStep2Next}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-semibold text-sm transition cursor-pointer"
+                >
+                  Next: Home & Protection
+                  <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
             </div>
           )}
 
-          {step === 2 && mode === 'industry' && (
-            <div className="space-y-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                Workplace & Operations
-              </h2>
-
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Facility Type
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      'Office & IT Park',
-                      'Manufacturing & Warehouse',
-                      'Construction & Logistics',
-                    ] as IndustryProfile['facilityType'][]
-                  ).map((opt) => (
-                    <StepPill
-                      key={opt}
-                      label={opt}
-                      active={industry.facilityType === opt}
-                      onClick={() =>
-                        setIndustry({ ...industry, facilityType: opt })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Shift Schedule
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      'Day Shift (9 AM - 6 PM)',
-                      '24/7 Rotating Shifts',
-                      'Early Morning / Night',
-                    ] as IndustryProfile['shiftSchedule'][]
-                  ).map((opt) => (
-                    <StepPill
-                      key={opt}
-                      label={opt}
-                      active={industry.shiftSchedule === opt}
-                      onClick={() =>
-                        setIndustry({ ...industry, shiftSchedule: opt })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Diesel Generator / Fleet Usage
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      'None / Electric',
-                      'Backup DG Only',
-                      'Heavy Fleet & DG',
-                    ] as IndustryProfile['dieselFleetUsage'][]
-                  ).map((opt) => (
-                    <StepPill
-                      key={opt}
-                      label={opt}
-                      active={industry.dieselFleetUsage === opt}
-                      onClick={() =>
-                        setIndustry({ ...industry, dieselFleetUsage: opt })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: BUDGET & SETUP */}
+          {/* STEP 3: HOME SURROUNDINGS + PROTECTION YOU ALREADY HAVE */}
           {step === 3 && (
-            <div className="space-y-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                Budget & Indoor Setup Tier
-              </h2>
-              <p className="text-sm text-slate-400">
-                Gemini will tailor your indoor air protection & emission-saving
-                actions strictly to this tier.
-              </p>
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Home className="h-4 w-4 text-sky-400" />
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                      Home Surroundings
+                    </h2>
+                  </div>
+                  <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
+                    Multi-select
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {HOME_SURROUNDINGS.map((hs) => (
+                    <TapChip
+                      key={hs}
+                      multi
+                      label={hs}
+                      active={homeSurroundings.includes(hs)}
+                      onClick={() =>
+                        setHomeSurroundings((prev) => toggleMulti(prev, hs))
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
 
-              <div className="grid grid-cols-1 gap-3">
-                {[
-                  {
-                    tier: 'Zero-Cost Household Changes' as BudgetTier,
-                    desc: 'Timed ventilation windows, damp mopping, cooking exhaust & behavioral shifts.',
-                  },
-                  {
-                    tier: 'Mid-Range' as BudgetTier,
-                    desc: 'N95/N99 masks, window draft sealing, DIY MERV-13 box-fan scrubbers.',
-                  },
-                  {
-                    tier: 'HEPA Purifiers' as BudgetTier,
-                    desc: 'True HEPA H13 air purifiers, indoor PM2.5 sensors & HVAC filtration.',
-                  },
-                ].map((item) => {
-                  const active = budget === item.tier;
-                  return (
-                    <button
-                      key={item.tier}
-                      type="button"
-                      onClick={() => setBudget(item.tier)}
-                      className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
-                        active
-                          ? 'bg-sky-500/15 border-sky-400 shadow-lg shadow-sky-500/10'
-                          : 'bg-slate-800/50 border-slate-700/80 hover:border-slate-500'
-                      }`}
-                    >
-                      <div>
-                        <div className="font-semibold text-white text-sm">
-                          {item.tier}
-                        </div>
-                        <div className="text-xs text-slate-400 mt-1">
-                          {item.desc}
-                        </div>
-                      </div>
-                      <div
-                        className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 ml-4 ${
-                          active
-                            ? 'bg-sky-500 text-white'
-                            : 'border border-slate-600'
-                        }`}
-                      >
-                        {active && <Check className="h-3.5 w-3.5" />}
-                      </div>
-                    </button>
-                  );
-                })}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-sky-400" />
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                      Protection You Already Have
+                    </h2>
+                  </div>
+                  <span className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
+                    Multi-select
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {EXISTING_PROTECTIONS.map((ep) => (
+                    <TapChip
+                      key={ep}
+                      multi
+                      label={ep}
+                      active={existingProtection.includes(ep)}
+                      onClick={() =>
+                        setExistingProtection((prev) =>
+                          toggleMulti(prev, ep, 'None (Zero-Cost Tips Only)')
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {stepError && (
+                <p className="text-xs text-rose-400">{stepError}</p>
+              )}
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStepError('');
+                    setStep(2);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition cursor-pointer"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFinish}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition cursor-pointer shadow-lg shadow-emerald-500/25"
+                >
+                  <Check className="h-4 w-4" />
+                  Build My Daily Plan
+                </button>
               </div>
             </div>
           )}
-
-          {/* Footer Navigation */}
-          <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
-            {step > 1 ? (
-              <button
-                type="button"
-                onClick={() => setStep((s) => (s === 3 ? 2 : 1))}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-medium text-slate-200 transition cursor-pointer"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </button>
-            ) : (
-              <div />
-            )}
-
-            {step === 1 && (
-              <button
-                type="button"
-                onClick={handleStep1Next}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition cursor-pointer"
-              >
-                Continue
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            )}
-
-            {step === 2 && (
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition cursor-pointer"
-              >
-                Continue
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            )}
-
-            {step === 3 && (
-              <button
-                type="button"
-                onClick={handleFinish}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition cursor-pointer"
-              >
-                <ShieldCheck className="h-4 w-4" />
-                Launch Dashboard
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>

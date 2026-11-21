@@ -12,6 +12,20 @@ import type {
 
 const STORAGE_KEY = 'smogsense_profile_v1';
 
+function isValidMultiSelectProfile(data: unknown): data is UserProfile {
+  if (!data || typeof data !== 'object') return false;
+  const candidate = data as Partial<UserProfile>;
+  return (
+    Boolean(candidate.location?.city) &&
+    Array.isArray(candidate.stepOutWindows) &&
+    Array.isArray(candidate.travelModes) &&
+    Array.isArray(candidate.householdMembers) &&
+    Array.isArray(candidate.healthSensitivities) &&
+    Array.isArray(candidate.homeSurroundings) &&
+    Array.isArray(candidate.existingProtection)
+  );
+}
+
 export default function HomePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -27,7 +41,12 @@ export default function HomePage() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        setProfile(JSON.parse(saved) as UserProfile);
+        const parsed = JSON.parse(saved);
+        if (isValidMultiSelectProfile(parsed)) {
+          setProfile(parsed);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
       }
     } catch {
       // ignore storage errors
@@ -41,8 +60,6 @@ export default function HomePage() {
       try {
         const params = new URLSearchParams();
         if (severe) params.set('simulate', 'severe');
-        if (activeProfile.location.state)
-          params.set('state', activeProfile.location.state);
         if (activeProfile.location.city)
           params.set('city', activeProfile.location.city);
         if (activeProfile.location.town)

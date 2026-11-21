@@ -17,28 +17,34 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
 
   const starterQuestions = useMemo(() => {
     const loc = profile.location.town || profile.location.city || 'my area';
+    const primaryTravel = profile.travelModes?.[0] || 'daily commute';
+    const sensitivities = (profile.healthSensitivities || []).filter(
+      (s) => s !== 'None'
+    );
+    const sensitivityNote =
+      sensitivities.length > 0
+        ? `with ${sensitivities[0].toLowerCase()}`
+        : 'for my household';
+
     if (profile.mode === 'school') {
       return [
-        `Should we move morning assembly and sports indoors in ${loc} today?`,
-        `How does today's PM2.5 affect ${profile.school?.studentGroup || 'students'}?`,
-        `What low-cost classroom ventilation protocol works best during winter inversions?`,
+        `What is the safest time for outdoor games in ${loc} today?`,
+        `How do we protect ${profile.school?.studentGroup || 'students'} during morning drop-off?`,
+        `What zero-cost classroom habits keep indoor air cleaner?`,
       ];
     }
     if (profile.mode === 'industry') {
       return [
-        `How should we schedule outdoor shifts in ${loc} under current AQI?`,
-        `What PPE and break rotation do workers need at this PM2.5 level?`,
-        `How can we cut diesel generator emissions during peak inversion hours?`,
+        `How should outdoor crews in ${loc} time their breaks today?`,
+        `What simple mask & water-rinse routine helps field staff most?`,
+        `When is the best window to ventilate indoor bays or offices?`,
       ];
     }
-    const sensitivityNote =
-      profile.personal?.sensitivity && profile.personal.sensitivity !== 'None'
-        ? `with ${profile.personal.sensitivity} sensitivity`
-        : 'for my household';
+
     return [
-      `When is the safest 2-hour window to step out in ${loc} today?`,
-      `What indoor air steps matter most ${sensitivityNote} on a ${profile.budget} budget?`,
-      `Why do winter smog levels spike after sunset even when traffic drops?`,
+      `How can I protect myself on ${primaryTravel} during rush hour in ${loc}?`,
+      `Which hours should I open vs. keep windows shut ${sensitivityNote}?`,
+      `What simple zero-cost steps help clear throat & nose irritation after traffic?`,
     ];
   }, [profile]);
 
@@ -79,7 +85,7 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
         ...nextMessages,
         {
           role: 'assistant',
-          content: 'Network error while contacting the meteorological specialist.',
+          content: 'Network error while contacting the air quality specialist.',
         },
       ]);
     } finally {
@@ -99,16 +105,16 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
           </div>
           <div>
             <h2 className="text-base font-bold text-white">
-              Weather & Respiratory Health Specialist
+              Ask Your Neighborhood Air-Quality Doctor
             </h2>
             <p className="text-xs text-slate-400">
-              Powered by gemini-3.8-flash · Automatically grounded in your profile & live AQI
+              Practical, jargon-free advice tailored to your commute, home &amp; live AQI
             </p>
           </div>
         </div>
         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full self-start sm:self-auto">
           <Sparkles className="h-3 w-3" />
-          Context Synced
+          Routine Synced
         </span>
       </div>
 
@@ -161,7 +167,7 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
           {sending && (
             <div className="flex items-center gap-2 text-xs text-slate-400 pl-11">
               <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
-              Analyzing boundary-layer meteorology & health impact...
+              Checking your city&apos;s air &amp; putting together practical steps...
             </div>
           )}
           <div ref={bottomRef} />
@@ -180,7 +186,7 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about thermal inversions, N95 fit, indoor air, or safe hours..."
+          placeholder="Ask about your commute, opening windows, kids' play, or masks..."
           disabled={!aqiData || sending}
           className="flex-1 rounded-2xl bg-slate-800/80 border border-slate-700 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 disabled:opacity-50"
         />

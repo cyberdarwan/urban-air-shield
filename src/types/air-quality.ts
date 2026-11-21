@@ -1,59 +1,122 @@
 export type SupportMode = 'personal' | 'school' | 'industry';
 
-export type BudgetTier =
-  | 'Zero-Cost Household Changes'
-  | 'Mid-Range'
-  | 'HEPA Purifiers';
+export const INDIAN_CITIES = [
+  'New Delhi',
+  'Mumbai',
+  'Bengaluru',
+  'Hyderabad',
+  'Chennai',
+  'Kolkata',
+  'Pune',
+  'Ahmedabad',
+  'Jaipur',
+  'Lucknow',
+  'Patna',
+  'Chandigarh',
+] as const;
 
-export type HealthSensitivity = 'None' | 'Asthma/Respiratory' | 'Cardiac';
+export type IndianCity = (typeof INDIAN_CITIES)[number];
 
-export type CommuteType =
-  | 'Two-Wheeler/Walk'
-  | 'Car'
-  | 'Metro/Bus'
-  | 'Work From Home';
+export const STEP_OUT_WINDOWS = [
+  'Early Morning (6–9 AM)',
+  'Office / College Hours (9 AM–6 PM)',
+  'Evening Rush (6–10 PM)',
+  'Late Night',
+  'Mostly Indoors / WFH',
+] as const;
 
-export type ExerciseHabit =
-  | 'Daily Outdoor'
-  | '3x/Week'
-  | 'Indoor Only'
-  | 'Minimal';
+export type StepOutWindow = (typeof STEP_OUT_WINDOWS)[number];
+
+export const TRAVEL_MODES = [
+  'Two-Wheeler / Bike',
+  'Auto / Open Cab',
+  'AC Car / Cab',
+  'Metro / Local Train',
+  'Bus / Walk',
+] as const;
+
+export type TravelMode = (typeof TRAVEL_MODES)[number];
+
+export const HOUSEHOLD_MEMBERS = [
+  'Just Me',
+  'Kids Under 10',
+  'School / Teenagers',
+  'Seniors (60+)',
+  'Pregnant Member',
+] as const;
+
+export type HouseholdMember = (typeof HOUSEHOLD_MEMBERS)[number];
+
+export const HEALTH_SENSITIVITIES = [
+  'None',
+  'Asthma / Wheezing',
+  'Dust / Sinus Allergy',
+  'Heart / BP Condition',
+  'Frequent Throat / Eye Irritation',
+] as const;
+
+export type HealthSensitivity = (typeof HEALTH_SENSITIVITIES)[number];
+
+export const HOME_SURROUNDINGS = [
+  'Main Road / Heavy Traffic',
+  'Construction Nearby',
+  'Quiet Residential / Gated',
+  'High-Rise Floor',
+  'Ground / Lower Floor',
+] as const;
+
+export type HomeSurrounding = (typeof HOME_SURROUNDINGS)[number];
+
+export const EXISTING_PROTECTIONS = [
+  'Air Purifier',
+  'N95 / KN95 Masks',
+  'Kitchen Chimney / Exhaust',
+  'AC with Recirculation',
+  'None (Zero-Cost Tips Only)',
+] as const;
+
+export type ExistingProtection = (typeof EXISTING_PROTECTIONS)[number];
 
 export interface UserLocation {
-  state: string;
-  city: string;
-  town: string;
-}
-
-export interface PersonalProfile {
-  adults: number;
-  children: number;
-  seniors: number;
-  sensitivity: HealthSensitivity;
-  commute: CommuteType;
-  exerciseHabit: ExerciseHabit;
+  city: IndianCity | string;
+  town?: string;
 }
 
 export interface SchoolProfile {
-  studentGroup: 'Primary (Ages 5-10)' | 'Middle & High (Ages 11-17)' | 'College & University';
+  studentGroup:
+    | 'Primary (Ages 5-10)'
+    | 'Middle & High (Ages 11-17)'
+    | 'College & University';
   indoorSportsHall: 'Yes' | 'No';
-  outdoorSportsSchedule: 'Morning Assembly & PT' | 'Afternoon Games' | 'Suspended in Smog';
-  dropoffType: 'School Bus Fleet' | 'Private Cars & Vans' | 'Walk / Cycle';
+  outdoorSportsSchedule:
+    | 'Morning Assembly & PT'
+    | 'Afternoon Games'
+    | 'Suspended in Smog';
 }
 
 export interface IndustryProfile {
-  facilityType: 'Office & IT Park' | 'Manufacturing & Warehouse' | 'Construction & Logistics';
-  shiftSchedule: 'Day Shift (9 AM - 6 PM)' | '24/7 Rotating Shifts' | 'Early Morning / Night';
+  facilityType:
+    | 'Office & IT Park'
+    | 'Manufacturing & Warehouse'
+    | 'Construction & Logistics';
+  shiftSchedule:
+    | 'Day Shift (9 AM - 6 PM)'
+    | '24/7 Rotating Shifts'
+    | 'Early Morning / Night';
   dieselFleetUsage: 'None / Electric' | 'Backup DG Only' | 'Heavy Fleet & DG';
 }
 
 export interface UserProfile {
   mode: SupportMode;
   location: UserLocation;
-  personal?: PersonalProfile;
+  stepOutWindows: StepOutWindow[];
+  travelModes: TravelMode[];
+  householdMembers: HouseholdMember[];
+  healthSensitivities: HealthSensitivity[];
+  homeSurroundings: HomeSurrounding[];
+  existingProtection: ExistingProtection[];
   school?: SchoolProfile;
   industry?: IndustryProfile;
-  budget: BudgetTier;
   updatedAt: string;
 }
 
@@ -72,7 +135,8 @@ export interface PollutantLevels {
   o3: number;
 }
 
-export interface GrapAdvisory {
+export interface RegionalAdvisory {
+  isGrapRegion: boolean;
   stage: string;
   title: string;
   summary: string;
@@ -87,39 +151,36 @@ export interface AqiResponse {
   pollutants: PollutantLevels;
   source: string;
   timestamp: string;
-  advisories: GrapAdvisory[];
+  advisories: RegionalAdvisory[];
   simulated: boolean;
 }
 
 export interface RecommendationPayload {
   officialWarnings: {
-    grapStage: string;
+    isGrapRegion: boolean;
+    advisoryTitle: string;
+    stageOrLevel: string;
     headline: string;
-    restrictions: string[];
+    bullets: string[];
   };
-  healthHazardImpact: {
-    riskLevel: string;
+  clockWindows: {
+    bestWindowToStepOut: string;
+    bestWindowReason: string;
+    peakSmokeHours: string;
+    peakSmokeReason: string;
+  };
+  todaysPracticalMoves: {
+    onTheMove: string;
+    atHome: string;
+    forYourHousehold: string;
+    quickChecklist: string[];
+  };
+  futureLifestyleUpgrades: {
     summary: string;
-    groupImpacts: Array<{
-      group: string;
-      risk: string;
-      guidance: string;
-    }>;
-  };
-  commuteAndTransportPlan: {
-    dayPlan: string;
-    weekPlan: string;
-    safeTimeWindows: string[];
-    maskGuidance: string;
-    emissionSavings: string;
-  };
-  subtleHouseholdChanges: {
-    summary: string;
-    adjustments: Array<{
+    upgrades: Array<{
       title: string;
       description: string;
-      exposureDropPercent: number;
-      co2SavedKgPerWeek: number;
+      whyItHelps: string;
     }>;
   };
 }

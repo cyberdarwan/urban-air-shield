@@ -4,16 +4,17 @@ import React from 'react';
 import {
   AlertTriangle,
   Bus,
+  CheckCircle2,
   Clock,
   Flame,
   HeartPulse,
   Home,
-  Leaf,
   MapPin,
   RefreshCw,
   ShieldAlert,
   SlidersHorizontal,
   Sparkles,
+  Sun,
   Wind,
 } from 'lucide-react';
 import { buildHourlyTimeline } from '@/lib/aqi-utils';
@@ -77,6 +78,12 @@ export default function Dashboard({
       })
     : 'Syncing...';
 
+  const profileSummaryTags = [
+    ...(profile.travelModes || []).slice(0, 2),
+    ...(profile.healthSensitivities || []).filter((s) => s !== 'None').slice(0, 1),
+    ...(profile.existingProtection || []).slice(0, 1),
+  ];
+
   return (
     <div className="space-y-6">
       {/* Top Weather App Header */}
@@ -86,18 +93,26 @@ export default function Dashboard({
             <Wind className="h-6 w-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-white">
                 SmogSense
               </h1>
               <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
                 {profile.mode}
               </span>
+              {profileSummaryTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-300 border border-sky-500/20"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
             <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
               <MapPin className="h-3.5 w-3.5 text-sky-400" />
               <span>
-                {[profile.location.town, profile.location.city, profile.location.state]
+                {[profile.location.town, profile.location.city]
                   .filter(Boolean)
                   .join(', ') || 'Urban Station'}
               </span>
@@ -106,7 +121,6 @@ export default function Dashboard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Severe Smog Simulator Toggle */}
           <button
             type="button"
             onClick={onToggleSimulate}
@@ -142,7 +156,7 @@ export default function Dashboard({
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-500/15 text-sky-300 border border-sky-400/30 hover:bg-sky-500/25 transition cursor-pointer"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            Edit Profile
+            Edit Routine
           </button>
         </div>
       </header>
@@ -222,19 +236,49 @@ export default function Dashboard({
         </div>
       </section>
 
-      {/* Hourly Safe-Window Timeline */}
-      <section className="rounded-3xl bg-slate-900/85 border border-slate-800 p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+      {/* Plain-English Clock Windows + Hourly Timeline */}
+      <section className="rounded-3xl bg-slate-900/85 border border-slate-800 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-sky-400" />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">
-              Diurnal Winter Smog & Safe-Window Timeline
+              Today&apos;s Best &amp; Worst Hours
             </h2>
           </div>
           <span className="text-xs text-slate-400">
-            Midday solar mixing (12:00-16:00) typically offers lowest ground-level PM2.5
+            Afternoon sun clears ground smoke; early morning &amp; night trap it
           </span>
         </div>
+
+        {recommendations?.clockWindows && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-4 space-y-1">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                <Sun className="h-4 w-4" />
+                Best Window to Step Out
+              </div>
+              <div className="text-lg font-bold text-white">
+                {recommendations.clockWindows.bestWindowToStepOut}
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {recommendations.clockWindows.bestWindowReason}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-rose-500/10 border border-rose-500/30 p-4 space-y-1">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-rose-300">
+                <AlertTriangle className="h-4 w-4" />
+                Peak Smoke Hours
+              </div>
+              <div className="text-lg font-bold text-white">
+                {recommendations.clockWindows.peakSmokeHours}
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {recommendations.clockWindows.peakSmokeReason}
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-3 sm:grid-cols-9 gap-2.5">
           {timeline.map((slot) => {
@@ -265,7 +309,7 @@ export default function Dashboard({
         </div>
       </section>
 
-      {/* 4 Structured GenAI Cards */}
+      {/* GenAI Harm-Reduction Plan */}
       {loadingRecs && !recommendations ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {[1, 2, 3, 4].map((i) => (
@@ -281,178 +325,156 @@ export default function Dashboard({
           ))}
         </div>
       ) : recommendations ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Card 1: Official Warnings */}
-          <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <ShieldAlert className="h-5 w-5" />
-                </div>
-                <h3 className="font-bold text-white text-base">
-                  Official Warnings & GRAP
-                </h3>
-              </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                {recommendations.officialWarnings.grapStage}
-              </span>
-            </div>
-
-            <p className="text-sm font-medium text-slate-200">
-              {recommendations.officialWarnings.headline}
-            </p>
-
-            <ul className="space-y-2">
-              {recommendations.officialWarnings.restrictions.map((item, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-start gap-2 text-xs text-slate-300 leading-relaxed"
-                >
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Card 2: Health Hazard Impact */}
-          <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400">
-                  <HeartPulse className="h-5 w-5" />
-                </div>
-                <h3 className="font-bold text-white text-base">
-                  Health Hazard Impact
-                </h3>
-              </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                {recommendations.healthHazardImpact.riskLevel}
-              </span>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              {recommendations.healthHazardImpact.summary}
-            </p>
-
-            <div className="space-y-2.5">
-              {recommendations.healthHazardImpact.groupImpacts.map((g, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-2xl bg-slate-800/60 border border-slate-700/70 p-3"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-white">
-                      {g.group}
-                    </span>
-                    <span className="text-[11px] font-semibold text-rose-300">
-                      {g.risk}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-300">{g.guidance}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 3: Commute & Transport Plan */}
-          <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="space-y-5">
+          {/* Today's Practical Moves (Full-width structured card) */}
+          <section className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
-                  <Bus className="h-5 w-5" />
+                  <Sparkles className="h-5 w-5" />
                 </div>
-                <h3 className="font-bold text-white text-base">
-                  Commute & Transport Plan
-                </h3>
+                <div>
+                  <h3 className="font-bold text-white text-base">
+                    Today&apos;s Practical Moves
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Realistic harm-reduction steps for your exact routine today
+                  </p>
+                </div>
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-300 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full">
-                <Sparkles className="h-3 w-3" />
-                Gemini Plan
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full self-start sm:self-auto">
+                Immediate Actions
               </span>
             </div>
 
-            <div className="space-y-2.5 text-xs text-slate-300">
-              <div className="rounded-2xl bg-slate-800/60 border border-slate-700/70 p-3">
-                <div className="font-semibold text-white mb-0.5">Today</div>
-                <p>{recommendations.commuteAndTransportPlan.dayPlan}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-800/60 border border-slate-700/70 p-3">
-                <div className="font-semibold text-white mb-0.5">This Week</div>
-                <p>{recommendations.commuteAndTransportPlan.weekPlan}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {recommendations.commuteAndTransportPlan.safeTimeWindows.map(
-                (w, idx) => (
-                  <span
-                    key={idx}
-                    className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/25"
-                  >
-                    {w}
-                  </span>
-                )
-              )}
-            </div>
-
-            <div className="text-xs text-slate-300 space-y-1 pt-1 border-t border-slate-800">
-              <div>
-                <span className="font-semibold text-white">Mask Guidance: </span>
-                {recommendations.commuteAndTransportPlan.maskGuidance}
-              </div>
-              <div className="text-emerald-300">
-                <span className="font-semibold">Emission Savings: </span>
-                {recommendations.commuteAndTransportPlan.emissionSavings}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Subtle Household Changes */}
-          <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <Home className="h-5 w-5" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-2xl bg-slate-800/60 border border-slate-700/70 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-sky-300">
+                  <Bus className="h-4 w-4" />
+                  On the Move
                 </div>
-                <h3 className="font-bold text-white text-base">
-                  Subtle Household Changes
-                </h3>
+                <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                  {recommendations.todaysPracticalMoves.onTheMove}
+                </p>
               </div>
-              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                {profile.budget}
-              </span>
+
+              <div className="rounded-2xl bg-slate-800/60 border border-slate-700/70 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                  <Home className="h-4 w-4" />
+                  At Home
+                </div>
+                <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                  {recommendations.todaysPracticalMoves.atHome}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-800/60 border border-slate-700/70 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-rose-300">
+                  <HeartPulse className="h-4 w-4" />
+                  For Your Household
+                </div>
+                <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                  {recommendations.todaysPracticalMoves.forYourHousehold}
+                </p>
+              </div>
             </div>
 
-            <p className="text-xs text-slate-400">
-              {recommendations.subtleHouseholdChanges.summary}
-            </p>
+            {recommendations.todaysPracticalMoves.quickChecklist?.length > 0 && (
+              <div className="pt-2 border-t border-slate-800">
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
+                  Quick Checklist for Today
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {recommendations.todaysPracticalMoves.quickChecklist.map(
+                    (item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2 text-xs text-slate-200 bg-slate-800/40 rounded-xl px-3 py-2 border border-slate-800"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <span>{item}</span>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
 
-            <div className="space-y-3">
-              {recommendations.subtleHouseholdChanges.adjustments.map(
-                (adj, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-2xl bg-slate-800/60 border border-slate-700/70 p-3.5 space-y-2"
-                  >
-                    <div className="font-semibold text-xs text-white">
-                      {adj.title}
-                    </div>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      {adj.description}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/25">
-                        -{adj.exposureDropPercent}% Exposure
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
-                        <Leaf className="h-3 w-3" />
-                        {adj.co2SavedKgPerWeek} kg CO₂/wk saved
-                      </span>
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Regional Advisory Card: CAQM GRAP (New Delhi/NCR) vs CPCB Citizen Guidance (All Other Cities) */}
+            <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <ShieldAlert className="h-5 w-5" />
                   </div>
-                )
-              )}
+                  <h3 className="font-bold text-white text-base">
+                    {recommendations.officialWarnings.advisoryTitle}
+                  </h3>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  {recommendations.officialWarnings.stageOrLevel}
+                </span>
+              </div>
+
+              <p className="text-sm font-medium text-slate-200">
+                {recommendations.officialWarnings.headline}
+              </p>
+
+              <ul className="space-y-2">
+                {recommendations.officialWarnings.bullets.map((item, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-2 text-xs text-slate-300 leading-relaxed"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Future Lifestyle Upgrades (Optional, Low-Pressure) */}
+            <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <h3 className="font-bold text-white text-base">
+                    Future Lifestyle Upgrades
+                  </h3>
+                </div>
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                  Optional · Gradual
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-400">
+                {recommendations.futureLifestyleUpgrades.summary}
+              </p>
+
+              <div className="space-y-3">
+                {recommendations.futureLifestyleUpgrades.upgrades.map(
+                  (upg, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-2xl bg-slate-800/60 border border-slate-700/70 p-3.5 space-y-1.5"
+                    >
+                      <div className="font-semibold text-xs text-white">
+                        {upg.title}
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        {upg.description}
+                      </p>
+                      <p className="text-[11px] text-emerald-300">
+                        Why it helps: {upg.whyItHelps}
+                      </p>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
           </div>
         </div>

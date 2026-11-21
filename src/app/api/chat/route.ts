@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isGrapCity } from '@/lib/aqi-utils';
 import { GEMINI_MODEL, getGeminiClient, withTimeout } from '@/lib/gemini';
 import type { AqiResponse, ChatMessage, UserProfile } from '@/types/air-quality';
 
 function buildChatFallback(profile: UserProfile, aqiData: AqiResponse): string {
-  const loc = aqiData.locationLabel || 'your area';
-  return `Based on live readings at ${aqiData.stationName} (${loc}), AQI is currently ${aqiData.aqi} (${aqiData.category}) with PM2.5 at ${aqiData.pollutants.pm25} µg/m³. During winter thermal inversions, cold air traps fine particulates near ground level between 06:00-10:00 and after 18:30. Given your "${profile.mode}" profile and "${profile.budget}" setup, prioritize indoor air sealing during peak hours, schedule essential outdoor movement between 12:00-16:00, and wear a fitted N95 mask outdoors.`;
+  const city = profile.location?.city || 'your city';
+  const loc = profile.location?.town ? `${profile.location.town}, ${city}` : city;
+  const travel = (profile.travelModes || []).join(', ') || 'daily commute';
+  const gear = (profile.existingProtection || []).join(', ') || 'everyday zero-cost habits';
+
+  return `Right now in ${loc}, AQI is ${aqiData.aqi} (${aqiData.category}) with PM2.5 at ${aqiData.pollutants.pm25} µg/m³. Since morning (6:00 AM – 9:30 AM) and evening (7:00 PM – 11:00 PM) cool air traps smoke close to the road, try to bunch errands between 12:00 PM – 4:00 PM when the sun clears the air. For your ${travel} routine using ${gear}, protect your nose and mouth in heavy traffic, keep car/cab AC on recirculation, and rinse your face and nose with plain water as soon as you get indoors.`;
 }
 
 export async function POST(request: NextRequest) {
@@ -33,31 +38,44 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const systemInstruction = `You are an expert Urban Meteorologist & Environmental Health Specialist with deep expertise in winter thermal inversions, boundary-layer atmospheric dispersion, PM2.5/PM10 respiratory & cardiovascular physiology, N95/HEPA filtration physics, and official CPCB GRAP air quality protocols.
+    const city = profile.location?.city || 'the city';
+    const grapRegion = isGrapCity(city);
 
-You must give hyper-personalized, scientifically grounded, concise, and practical answers using the user's exact profile and live telemetry injected below. Never ask the user to repeat their location, household size, sensitivities, commute, or current AQI—you already have them. Never mention or invent unrelated Indian state names.
+    const systemInstruction = `You are a deeply knowledgeable, street-smart Indian environmental doctor talking warmly and clearly to a neighbor or family member.
 
-INJECTED USER PROFILE:
+CORE MENTAL MODEL — HARM REDUCTION, NOT AVOIDANCE:
+- In Indian cities, 150–300 AQI is everyday reality. Users MUST still commute, work, drop kids at school, and run errands.
+- NEVER give generic textbook advice like "stay indoors" or "cancel outdoor plans" (unless AQI > 400 Severe emergency, and even then give practical survival steps for unavoidable travel).
+- Do the scientific reasoning internally (cold morning/evening air trapping smoke, traffic exhaust corridors, indoor cooking/dust) and speak in clear, warm, everyday human language with ZERO academic or medical jargon.
+- Separate immediate practical moves for today from optional longer-term habits.
+- Give plain-English clock windows (e.g., 12:00 PM – 4:00 PM best window; 6:00 AM – 9:30 AM & 7:00 PM – 11:00 PM peak smoke hours).
+- ${grapRegion ? 'For New Delhi / NCR, you may reference CAQM GRAP rules where helpful.' : `For ${city}, do NOT mention GRAP or CAQM—focus on CPCB citizen guidance and practical personal precautions.`}
+- STRICT RULE: Never mention or invent any Indian state names. Never ask the user to repeat their city, travel mode, household, or AQI—you already have them.
+
+USER PROFILE:
 - Mode: ${profile.mode}
-- Location: ${profile.location?.town || ''}, ${profile.location?.city || ''}, ${profile.location?.state || ''}
-- Budget Tier: ${profile.budget}
-- Details: ${JSON.stringify(profile.personal || profile.school || profile.industry)}
+- City / Locality: ${city}${profile.location?.town ? ` (${profile.location.town})` : ''}
+- When They Step Out: ${(profile.stepOutWindows || []).join(', ') || 'Not specified'}
+- How They Travel: ${(profile.travelModes || []).join(', ') || 'Not specified'}
+- Household Members: ${(profile.householdMembers || []).join(', ') || 'Just Me'}
+- Health Sensitivities: ${(profile.healthSensitivities || []).join(', ') || 'None'}
+- Home Surroundings: ${(profile.homeSurroundings || []).join(', ') || 'Not specified'}
+- Protection Already Owned: ${(profile.existingProtection || []).join(', ') || 'None (Zero-Cost Tips Only)'}
+${profile.school ? `- School Details: ${JSON.stringify(profile.school)}` : ''}
+${profile.industry ? `- Workplace Details: ${JSON.stringify(profile.industry)}` : ''}
 
-INJECTED LIVE TELEMETRY:
-- Station: ${aqiData.stationName} (${aqiData.source})
-- Timestamp: ${aqiData.timestamp}
+LIVE TELEMETRY (${aqiData.stationName} · ${aqiData.source}):
 - AQI: ${aqiData.aqi} (${aqiData.category})
-- PM2.5: ${aqiData.pollutants.pm25} µg/m³, PM10: ${aqiData.pollutants.pm10} µg/m³, NO2: ${aqiData.pollutants.no2} µg/m³, O3: ${aqiData.pollutants.o3} µg/m³
-- Active GRAP Advisories: ${aqiData.advisories.map((a) => `${a.stage}: ${a.title}`).join('; ')}`;
+- PM2.5: ${aqiData.pollutants.pm25} µg/m³, PM10: ${aqiData.pollutants.pm10} µg/m³, NO2: ${aqiData.pollutants.no2} µg/m³, O3: ${aqiData.pollutants.o3} µg/m³`;
 
     const conversationHistory = messages
-      .map((m) => `${m.role === 'user' ? 'User' : 'Specialist'}: ${m.content}`)
+      .map((m) => `${m.role === 'user' ? 'User' : 'Doctor'}: ${m.content}`)
       .join('\n\n');
 
     const response = await withTimeout(
       ai.models.generateContent({
         model: GEMINI_MODEL,
-        contents: `${conversationHistory}\n\nRespond clearly to the latest user message: "${latestUserMessage}"`,
+        contents: `${conversationHistory}\n\nRespond warmly, concisely, and practically to: "${latestUserMessage}"`,
         config: {
           systemInstruction,
           temperature: 0.4,
@@ -69,7 +87,7 @@ INJECTED LIVE TELEMETRY:
 
     const reply =
       response.text ||
-      'I could not generate a meteorological response right now. Please try again.';
+      'I could not pull up a response right now—please try asking again in a moment.';
 
     return NextResponse.json({
       reply,
@@ -84,7 +102,7 @@ INJECTED LIVE TELEMETRY:
       });
     }
     return NextResponse.json(
-      { error: 'Failed to process expert chat request' },
+      { error: 'Failed to process specialist chat request' },
       { status: 500 }
     );
   }
