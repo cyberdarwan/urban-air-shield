@@ -2,15 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Type } from '@google/genai';
 import { isGrapCity } from '@/lib/aqi-utils';
 import { GEMINI_MODEL, getGeminiClient, withTimeout } from '@/lib/gemini';
-import type {
-  AqiResponse,
-  RecommendationPayload,
-  UserProfile,
+import {
+  EXISTING_PROTECTIONS,
+  HEALTH_SENSITIVITIES,
+  HOME_SURROUNDINGS,
+  HOUSEHOLD_MEMBERS,
+  STEP_OUT_WINDOWS,
+  TRAVEL_MODES,
+  type AqiResponse,
+  type RecommendationPayload,
+  type UserProfile,
 } from '@/types/air-quality';
 
 const recommendationSchema = {
   type: Type.OBJECT,
   properties: {
+    heroVerdict: { type: Type.STRING },
     officialWarnings: {
       type: Type.OBJECT,
       properties: {
@@ -85,12 +92,45 @@ const recommendationSchema = {
     },
   },
   required: [
+    'heroVerdict',
     'officialWarnings',
     'clockWindows',
     'todaysPracticalMoves',
     'futureLifestyleUpgrades',
   ],
 };
+
+function findCustomEntries(values: string[], presets: readonly string[]): string[] {
+  const presetSet = new Set(presets);
+  return values.filter((v) => !presetSet.has(v));
+}
+
+function collectAllCustomEntries(profile: UserProfile): {
+  stepOut: string[];
+  travel: string[];
+  household: string[];
+  health: string[];
+  surroundings: string[];
+  protection: string[];
+  all: string[];
+} {
+  const stepOut = findCustomEntries(profile.stepOutWindows || [], STEP_OUT_WINDOWS);
+  const travel = findCustomEntries(profile.travelModes || [], TRAVEL_MODES);
+  const household = findCustomEntries(profile.householdMembers || [], HOUSEHOLD_MEMBERS);
+  const health = findCustomEntries(profile.healthSensitivities || [], HEALTH_SENSITIVITIES);
+  const surroundings = findCustomEntries(profile.homeSurroundings || [], HOME_SURROUNDINGS);
+  const protection = findCustomEntries(profile.existingProtection || [], EXISTING_PROTECTIONS);
+
+  return {
+    stepOut,
+    travel,
+    household,
+    health,
+    surroundings,
+    protection,
+    all: [...stepOut, ...travel, ...household, ...health, ...surroundings, ...protection],
+  };
+}
 
 function buildFallbackRecommendations(
   profile: UserProfile,
@@ -107,6 +147,7 @@ function buildFallbackRecommendations(
   const health = profile.healthSensitivities || [];
   const surroundings = profile.homeSurroundings || [];
   const gear = profile.existingProtection || [];
+  const custom = collectAllCustomEntries(profile);
 
   const hasBikeOrAuto =
     travel.includes('Two-Wheeler / Bike') || travel.includes('Auto / Open Cab');
@@ -124,38 +165,48 @@ function buildFallbackRecommendations(
     onTheMoveParts.push(
       hasN95
         ? 'Put on your N95 mask snugly over the nose bridge before starting your two-wheeler or auto ride, and keep your helmet visor down to block road grit.'
-        : 'Since you ride a two-wheeler or open auto without N95 masks on hand, tie a clean, double-layered cotton scarf or hanky tightly over your nose and mouth (dampen it slightly if smoke feels sharp), keep your visor down, and avoid sitting right behind diesel buses or trucks.'
+        : 'Since you ride a two-wheeler or open auto without N95 masks on hand, tie a clean, double-layered cotton scarf or hanky tightly over your nose and mouth (dampen it slightly if smoke feels sharp), keep your visor down, and avoid idling right behind diesel buses or trucks.'
     );
   }
   if (hasCar) {
     onTheMoveParts.push(
-      'In your car or cab, keep windows rolled up and switch the AC button to Recirculate (the curved arrow inside the car icon) so you are not pulling roadside exhaust straight into the cabin.'
+      'In your car or cab, keep windows rolled up and switch the AC button to Recirculate so roadside exhaust does not get pulled into the cabin.'
     );
   }
   if (travel.includes('Metro / Local Train') || travel.includes('Bus / Walk')) {
     onTheMoveParts.push(
-      'For metro, bus, or walking stretches, take shaded inner lanes instead of main-road footpaths where exhaust lingers, and rinse your nose and eyes with plain tap water as soon as you reach work or home.'
+      'For metro, bus, or walking stretches, take shaded inner lanes instead of main-road footpaths, and rinse your nose and eyes with plain tap water once you arrive.'
+    );
+  }
+  if (custom.travel.length > 0 || custom.stepOut.length > 0) {
+    const noted = [...custom.stepOut, ...custom.travel].join(', ');
+    onTheMoveParts.push(
+      `For your specific schedule/travel (${noted}), keep a clean mask or double-layered cotton scarf ready for peak traffic stretches and wash your face right after arriving.`
     );
   }
   if (onTheMoveParts.length === 0) {
     onTheMoveParts.push(
-      'When stepping out for errands, bunch them into one afternoon trip between 12:00 PM and 4:00 PM when the sun helps clear ground-level smoke.'
+      'When stepping out for errands, bunch them into one afternoon trip between 12:00 PM and 4:00 PM when sunlight helps clear ground-level smoke.'
     );
   }
   if (isEmergency) {
     onTheMoveParts.push(
-      'Because AQI is above 400 today, skip non-essential evening travel; if you must commute, wear a tight-fitting N95 mask and keep your trip as short as possible.'
+      'Because AQI is above 400 today, skip non-essential evening travel; if you must commute, wear a tight-fitting N95 mask and keep the trip short.'
     );
   }
 
   const atHomeParts: string[] = [];
-  if (nearTrafficOrConstruction) {
+  if (nearTrafficOrConstruction || custom.surroundings.length > 0) {
+    const extraSurroundings =
+      custom.surroundings.length > 0
+        ? ` (${custom.surroundings.join(', ')})`
+        : '';
     atHomeParts.push(
-      'With main-road traffic or construction nearby, keep street-facing windows shut during 6:00 AM – 9:30 AM and 7:00 PM – 11:00 PM; crack open only the quieter back windows between 12:30 PM and 3:30 PM.'
+      `With your surroundings${extraSurroundings}, keep street-facing windows shut during 6:00 AM – 9:30 AM and 7:00 PM – 11:00 PM; crack open only quieter back windows between 12:30 PM and 3:30 PM.`
     );
   } else {
     atHomeParts.push(
-      'Keep windows closed during early morning (6:00 AM – 9:30 AM) and late evening (7:00 PM – 11:00 PM) when cold air traps smoke low, and open opposite windows for 30–45 minutes around 1:00 PM – 3:30 PM.'
+      'Keep windows closed during early morning (6:00 AM – 9:30 AM) and late evening (7:00 PM – 11:00 PM) when cool air traps smoke low, and open opposite windows for 30–45 minutes around 1:00 PM – 3:30 PM.'
     );
   }
   if (hasPurifier) {
@@ -164,12 +215,17 @@ function buildFallbackRecommendations(
     );
   } else if (zeroCostOnly) {
     atHomeParts.push(
-      'Skip dry broom sweeping today—use a damp mop so settled dust does not kick back into the air, and keep a wet towel along the bottom gap of drafty doors.'
+      'Skip dry broom sweeping today—use a damp mop so settled dust stays down, and place a rolled damp cloth along drafty door gaps.'
+    );
+  }
+  if (custom.protection.length > 0) {
+    atHomeParts.push(
+      `Keep using your own setup (${custom.protection.join(', ')}) consistently during peak smoke hours.`
     );
   }
   if (hasChimney) {
     atHomeParts.push(
-      'Turn on your kitchen chimney 5 minutes before tadka or frying and leave it on for 10 minutes after.'
+      'Switch on your kitchen chimney 5 minutes before tadka or frying and leave it on for 10 minutes after.'
     );
   } else {
     atHomeParts.push(
@@ -191,7 +247,7 @@ function buildFallbackRecommendations(
     household.includes('Pregnant Member')
   ) {
     householdParts.push(
-      'Keep seniors and pregnant family members away from kitchen smoke and morning balcony chill; warm water sips and steam inhalation before bed ease throat dryness.'
+      'Keep seniors and pregnant family members away from kitchen smoke and morning balcony chill; warm water sips and gentle steam before bed ease throat dryness.'
     );
   }
   if (
@@ -200,12 +256,18 @@ function buildFallbackRecommendations(
     health.includes('Frequent Throat / Eye Irritation')
   ) {
     householdParts.push(
-      'Keep your reliever inhaler or saline nasal spray in your bag before stepping out, and do a quick plain-water saline rinse of your nostrils and eyes after evening travel.'
+      'Carry your reliever inhaler or saline nasal spray before stepping out, and do a quick plain-water saline rinse of your nostrils and eyes after evening travel.'
     );
   }
   if (health.includes('Heart / BP Condition')) {
     householdParts.push(
-      'Avoid brisk morning walks in cold smog—wait for midday sunshine or walk indoors, and stay hydrated throughout the day.'
+      'Avoid brisk morning walks in cold smog—wait for midday sunshine or walk indoors, and stay hydrated.'
+    );
+  }
+  if (custom.household.length > 0 || custom.health.length > 0) {
+    const extraHealth = [...custom.household, ...custom.health].join(', ');
+    householdParts.push(
+      `Paying special attention to "${extraHealth}", keep prescribed remedies handy, avoid direct smoke exposure during peak hours, and rinse face/nose with clean water after stepping back indoors.`
     );
   }
   if (householdParts.length === 0) {
@@ -224,8 +286,17 @@ function buildFallbackRecommendations(
   ];
 
   const primaryAdvisory = aqiData.advisories[0];
+  const heroVerdict =
+    aqiData.aqi <= 100
+      ? `Air in ${loc} is comfortable today (${aqiData.aqi} AQI)—carry on normally and enjoy midday cross-ventilation.`
+      : aqiData.aqi <= 200
+        ? `Everyday haze in ${loc} (${aqiData.aqi} AQI)—step out as planned, just guard against direct traffic smoke and save errands for midday.`
+        : aqiData.aqi <= 300
+          ? `Smoke and dust are elevated in ${loc} (${aqiData.aqi} AQI)—keep your routine moving with snug nose/mouth cover and midday ventilation.`
+          : `Heavy smog in ${loc} (${aqiData.aqi} AQI)—protect airways tightly on unavoidable commutes and keep windows shut outside 12:00 PM – 4:00 PM.`;
 
   return {
+    heroVerdict,
     officialWarnings: {
       isGrapRegion: grapRegion,
       advisoryTitle: grapRegion ? 'CAQM GRAP Protocol' : 'CPCB Citizen Guidance',
@@ -267,16 +338,15 @@ function buildFallbackRecommendations(
         },
         {
           title: 'Set up one "Clean Sleep Corner"',
-          description:
-            hasPurifier
-              ? 'Place your purifier near the bed with heavy curtains or draft stoppers on the bedroom door.'
-              : 'Use simple rubber/foam draft-sealing tape on your bedroom window frame so night-time traffic smoke stays outside.',
+          description: hasPurifier
+            ? 'Place your purifier near the bed with heavy curtains or draft stoppers on the bedroom door.'
+            : 'Use simple rubber or foam draft-sealing tape on your bedroom window frame so night-time traffic smoke stays outside.',
           whyItHelps:
             'Giving your lungs 7–8 hours of cleaner air overnight helps your airways recover from daytime traffic.',
         },
         {
           title: 'Shift outdoor workouts to midday or indoor slots',
-          description: `Whenever ${windows.includes('Early Morning (6–9 AM)') ? 'your early morning routine allows' : 'you plan exercise'}, swap 7 AM roadside jogs for a 1 PM brisk walk or indoor stretching.`,
+          description: `Whenever ${windows.includes('Early Morning (6–9 AM)') ? 'your early morning schedule allows' : 'you plan exercise'}, swap 7 AM roadside jogs for a 1 PM brisk walk or indoor stretching.`,
           whyItHelps:
             'You breathe 3–4× deeper during exercise, so timing it when afternoon sun clears the air cuts smoke intake sharply.',
         },
@@ -310,6 +380,7 @@ export async function POST(request: NextRequest) {
 
     const city = profile.location?.city || 'the city';
     const grapRegion = isGrapCity(city);
+    const custom = collectAllCustomEntries(profile);
 
     const prompt = `You are a deeply knowledgeable, street-smart Indian environmental doctor talking warmly and clearly to a neighbor or family member.
 
@@ -318,7 +389,7 @@ CORE MENTAL MODEL — HARM REDUCTION, NOT AVOIDANCE:
 - NEVER give generic textbook advice like "stay indoors", "avoid stepping out", or "cancel outdoor plans" (unless AQI > 400 Severe emergency, and even then pair it with practical survival steps for unavoidable travel).
 - Do all the atmospheric and medical reasoning internally (cold morning/evening air trapping smoke near the ground, traffic-corridor PM2.5 spikes, indoor cooking/brooming dust), and translate it into CLEAR, EVERYDAY HUMAN LANGUAGE with ZERO academic or medical jargon (never say "alveoli", "boundary-layer inversion", "particulate deposition", "cardiovascular morbidity", etc.).
 
-CROSS-REFERENCE EVERY MULTI-SELECT COMBINATION IN THIS USER'S PROFILE:
+CROSS-REFERENCE EVERY SELECTION IN THIS USER'S PROFILE:
 - City: ${city} (Locality: ${profile.location?.town || 'Not specified'})
 - Support Mode: ${profile.mode}
 - When They Step Out: ${(profile.stepOutWindows || []).join(', ') || 'Not specified'}
@@ -330,9 +401,12 @@ CROSS-REFERENCE EVERY MULTI-SELECT COMBINATION IN THIS USER'S PROFILE:
 ${profile.school ? `- School Details: ${JSON.stringify(profile.school)}` : ''}
 ${profile.industry ? `- Workplace Details: ${JSON.stringify(profile.industry)}` : ''}
 
+CUSTOM USER-TYPED ENTRIES (CRITICAL — MUST BE DIRECTLY ADDRESSED):
+${custom.all.length > 0 ? `The user manually typed these specific realities: ${custom.all.map((c) => `"${c}"`).join(', ')}. You MUST explicitly address each one in plain, practical everyday terms inside TodaysPracticalMoves (and heroVerdict if relevant). Never ignore custom entries.` : 'None.'}
+
 LIVE AIR QUALITY (${aqiData.stationName}):
 - AQI: ${aqiData.aqi} (${aqiData.category})
-- PM2.5: ${aqiData.pollutants.pm25} µg/m³, PM10: ${aqiData.pollutants.pm10} µg/m³, NO2: ${aqiData.pollutants.no2} µg/m³, O3: ${aqiData.pollutants.o3} µg/m³
+- PM2.5: ${aqiData.pollutants.pm25} µg/m³, PM10: ${aqiData.pollutants.pm10} µg/m³, NO2: ${aqiData.pollutants.no2} µg/m³, O3: ${aqiData.pollutants.o3} µg/m³, CO: ${aqiData.pollutants.co ?? 1.1} mg/m³
 
 REGIONAL ADVISORY RULE:
 - isGrapRegion MUST be ${grapRegion ? 'true' : 'false'}.
@@ -340,14 +414,15 @@ REGIONAL ADVISORY RULE:
 - STRICT RULE: Never mention or invent any Indian state names anywhere in your response.
 
 OUTPUT STRUCTURE:
-1. officialWarnings: Regional advisory (${grapRegion ? 'CAQM GRAP Protocol' : 'CPCB Citizen Guidance'}) tailored to AQI ${aqiData.aqi}.
-2. clockWindows: Plain-English clock windows ("bestWindowToStepOut" like "12:00 PM – 4:00 PM" and "peakSmokeHours" like "6:00 AM – 9:30 AM & 7:00 PM – 11:00 PM") with simple, neighborly reasons.
-3. todaysPracticalMoves: Immediate, realistic actions for TODAY's routine:
-   - onTheMove: Exactly how to handle their selected travel modes & step-out times (e.g. if Two-Wheeler + Evening Rush + None/Zero-Cost, tell them practical zero-cost bike/scarf/visor/post-ride water-rinse steps).
-   - atHome: Exact clock windows to open vs. close windows based on their home surroundings and gear (purifier vs. zero-cost damp mop/kitchen lid).
-   - forYourHousehold: Warm, specific care for their exact household members and health sensitivities.
+1. heroVerdict: One crisp, reassuring, plain-English sentence summarizing what today's air means for THIS user's specific routine.
+2. officialWarnings: Regional advisory (${grapRegion ? 'CAQM GRAP Protocol' : 'CPCB Citizen Guidance'}) tailored to AQI ${aqiData.aqi}.
+3. clockWindows: Plain-English clock windows ("bestWindowToStepOut" like "12:00 PM – 4:00 PM" and "peakSmokeHours" like "6:00 AM – 9:30 AM & 7:00 PM – 11:00 PM") with simple, neighborly reasons.
+4. todaysPracticalMoves: Immediate, realistic actions for TODAY's routine:
+   - onTheMove: Exactly how to handle their selected travel modes, step-out times, and any custom schedule/commute entries.
+   - atHome: Exact clock windows to open vs. close windows based on their home surroundings, gear, and any custom home entries.
+   - forYourHousehold: Warm, specific care for their exact household members, health sensitivities, and any custom health/family entries.
    - quickChecklist: 4 short, punchy action items for today.
-4. futureLifestyleUpgrades: A separate, low-pressure section for gradual, optional longer-term habits (3 upgrades) clearly framed as future-achievable rather than today's demands.`;
+5. futureLifestyleUpgrades: A separate, low-pressure section for gradual, optional longer-term habits (3 upgrades) clearly framed as future-achievable rather than today's demands.`;
 
     const response = await withTimeout(
       ai.models.generateContent({

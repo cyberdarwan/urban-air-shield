@@ -109,6 +109,25 @@ export default function HomePage() {
     }
   };
 
+  const handleCityChange = (nextCity: string) => {
+    if (!profile) return;
+    const updated: UserProfile = {
+      ...profile,
+      location: {
+        city: nextCity,
+        town: undefined,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    setProfile(updated);
+    setRecommendations(null);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      // ignore storage errors
+    }
+  };
+
   if (!profile || editingProfile) {
     return (
       <OnboardingWizard
@@ -120,8 +139,8 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+    <main className="min-h-screen bg-[#FAF9F6] text-[#1C1B18]">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
         <Dashboard
           profile={profile}
           aqiData={aqiData}
@@ -134,6 +153,7 @@ export default function HomePage() {
             fetchTelemetryAndRecommendations(profile, simulateSevere)
           }
           onEditProfile={() => setEditingProfile(true)}
+          onCityChange={handleCityChange}
         />
         <ExpertChatBox profile={profile} aqiData={aqiData} />
       </div>

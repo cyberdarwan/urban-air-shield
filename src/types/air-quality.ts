@@ -1,6 +1,6 @@
 export type SupportMode = 'personal' | 'school' | 'industry';
 
-export const INDIAN_CITIES = [
+export const TOP_METRO_CITIES = [
   'New Delhi',
   'Mumbai',
   'Bengaluru',
@@ -9,13 +9,71 @@ export const INDIAN_CITIES = [
   'Kolkata',
   'Pune',
   'Ahmedabad',
-  'Jaipur',
-  'Lucknow',
-  'Patna',
-  'Chandigarh',
 ] as const;
 
-export type IndianCity = (typeof INDIAN_CITIES)[number];
+export const EXPANDED_INDIAN_CITIES = [
+  'New Delhi',
+  'Mumbai',
+  'Bengaluru',
+  'Hyderabad',
+  'Chennai',
+  'Kolkata',
+  'Pune',
+  'Ahmedabad',
+  'Secunderabad',
+  'Visakhapatnam',
+  'Vijayawada',
+  'Coimbatore',
+  'Kochi',
+  'Thiruvananthapuram',
+  'Mysuru',
+  'Mangaluru',
+  'Madurai',
+  'Tiruchirappalli',
+  'Nagpur',
+  'Nashik',
+  'Thane',
+  'Navi Mumbai',
+  'Surat',
+  'Vadodara',
+  'Rajkot',
+  'Indore',
+  'Bhopal',
+  'Jabalpur',
+  'Gwalior',
+  'Jaipur',
+  'Jodhpur',
+  'Udaipur',
+  'Kota',
+  'Lucknow',
+  'Kanpur',
+  'Varanasi',
+  'Prayagraj',
+  'Agra',
+  'Meerut',
+  'Noida',
+  'Greater Noida',
+  'Gurugram',
+  'Ghaziabad',
+  'Faridabad',
+  'Chandigarh',
+  'Amritsar',
+  'Ludhiana',
+  'Jalandhar',
+  'Dehradun',
+  'Patna',
+  'Gaya',
+  'Ranchi',
+  'Jamshedpur',
+  'Raipur',
+  'Bhubaneswar',
+  'Cuttack',
+  'Guwahati',
+  'Shillong',
+  'Imphal',
+  'Srinagar',
+  'Jammu',
+] as const;
 
 export const STEP_OUT_WINDOWS = [
   'Early Morning (6–9 AM)',
@@ -25,8 +83,6 @@ export const STEP_OUT_WINDOWS = [
   'Mostly Indoors / WFH',
 ] as const;
 
-export type StepOutWindow = (typeof STEP_OUT_WINDOWS)[number];
-
 export const TRAVEL_MODES = [
   'Two-Wheeler / Bike',
   'Auto / Open Cab',
@@ -34,8 +90,6 @@ export const TRAVEL_MODES = [
   'Metro / Local Train',
   'Bus / Walk',
 ] as const;
-
-export type TravelMode = (typeof TRAVEL_MODES)[number];
 
 export const HOUSEHOLD_MEMBERS = [
   'Just Me',
@@ -45,8 +99,6 @@ export const HOUSEHOLD_MEMBERS = [
   'Pregnant Member',
 ] as const;
 
-export type HouseholdMember = (typeof HOUSEHOLD_MEMBERS)[number];
-
 export const HEALTH_SENSITIVITIES = [
   'None',
   'Asthma / Wheezing',
@@ -54,8 +106,6 @@ export const HEALTH_SENSITIVITIES = [
   'Heart / BP Condition',
   'Frequent Throat / Eye Irritation',
 ] as const;
-
-export type HealthSensitivity = (typeof HEALTH_SENSITIVITIES)[number];
 
 export const HOME_SURROUNDINGS = [
   'Main Road / Heavy Traffic',
@@ -65,8 +115,6 @@ export const HOME_SURROUNDINGS = [
   'Ground / Lower Floor',
 ] as const;
 
-export type HomeSurrounding = (typeof HOME_SURROUNDINGS)[number];
-
 export const EXISTING_PROTECTIONS = [
   'Air Purifier',
   'N95 / KN95 Masks',
@@ -75,10 +123,8 @@ export const EXISTING_PROTECTIONS = [
   'None (Zero-Cost Tips Only)',
 ] as const;
 
-export type ExistingProtection = (typeof EXISTING_PROTECTIONS)[number];
-
 export interface UserLocation {
-  city: IndianCity | string;
+  city: string;
   town?: string;
 }
 
@@ -109,12 +155,12 @@ export interface IndustryProfile {
 export interface UserProfile {
   mode: SupportMode;
   location: UserLocation;
-  stepOutWindows: StepOutWindow[];
-  travelModes: TravelMode[];
-  householdMembers: HouseholdMember[];
-  healthSensitivities: HealthSensitivity[];
-  homeSurroundings: HomeSurrounding[];
-  existingProtection: ExistingProtection[];
+  stepOutWindows: string[];
+  travelModes: string[];
+  householdMembers: string[];
+  healthSensitivities: string[];
+  homeSurroundings: string[];
+  existingProtection: string[];
   school?: SchoolProfile;
   industry?: IndustryProfile;
   updatedAt: string;
@@ -133,6 +179,7 @@ export interface PollutantLevels {
   pm10: number;
   no2: number;
   o3: number;
+  co?: number;
 }
 
 export interface RegionalAdvisory {
@@ -156,6 +203,7 @@ export interface AqiResponse {
 }
 
 export interface RecommendationPayload {
+  heroVerdict: string;
   officialWarnings: {
     isGrapRegion: boolean;
     advisoryTitle: string;

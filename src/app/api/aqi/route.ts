@@ -31,6 +31,7 @@ function normalizePollutantKey(id?: string): keyof PollutantLevels | null {
   if (upper === 'PM10') return 'pm10';
   if (upper === 'NO2') return 'no2';
   if (upper === 'O3' || upper === 'OZONE') return 'o3';
+  if (upper === 'CO') return 'co';
   return null;
 }
 
@@ -139,6 +140,7 @@ async function fetchFromCpcb(
     pm10: pollutants.pm10 ?? 142,
     no2: pollutants.no2 ?? 46,
     o3: pollutants.o3 ?? 38,
+    co: pollutants.co ?? 1.1,
   };
 
   const aqi = calculateAqi(finalPollutants);
@@ -167,6 +169,7 @@ async function fetchFromOpenAq(
     const queryTerm = town || city || state;
     const locUrl = new URL('https://api.openaq.org/v3/locations');
     locUrl.searchParams.set('limit', '15');
+    locUrl.searchParams.set('iso', 'IN');
     if (queryTerm) {
       locUrl.searchParams.set('q', queryTerm);
     }
@@ -212,7 +215,8 @@ async function fetchFromOpenAq(
       const paramName = sensorMap.get(m.sensorsId) || m.parameter;
       const key = normalizePollutantKey(paramName);
       if (key && typeof m.value === 'number' && m.value >= 0) {
-        pollutants[key] = Math.round(m.value);
+        pollutants[key] =
+          key === 'co' ? Math.round(m.value * 10) / 10 : Math.round(m.value);
       }
       if (m.datetime?.utc && !timestamp) {
         timestamp = m.datetime.utc;
@@ -232,6 +236,7 @@ async function fetchFromOpenAq(
       pm10: pollutants.pm10 ?? 155,
       no2: pollutants.no2 ?? 48,
       o3: pollutants.o3 ?? 36,
+      co: pollutants.co ?? 1.2,
     };
 
     const aqi = calculateAqi(finalPollutants);
@@ -242,7 +247,7 @@ async function fetchFromOpenAq(
       aqi,
       category: getAqiCategory(aqi),
       pollutants: finalPollutants,
-      source: 'OpenAQ v3 Fallback',
+      source: 'OpenAQ v3 (India)',
       timestamp: timestamp || new Date().toISOString(),
     };
   } catch {
@@ -265,8 +270,9 @@ function buildUrbanFallback(
   const pm10 = 162 + (hash % 70);
   const no2 = 44 + (hash % 24);
   const o3 = 34 + (hash % 18);
+  const co = Math.round((0.9 + (hash % 9) * 0.1) * 10) / 10;
 
-  const pollutants: PollutantLevels = { pm25, pm10, no2, o3 };
+  const pollutants: PollutantLevels = { pm25, pm10, no2, o3, co };
   const aqi = calculateAqi(pollutants);
   const primaryLocality = town || city || 'Central Urban';
 
@@ -276,7 +282,7 @@ function buildUrbanFallback(
     aqi,
     category: getAqiCategory(aqi),
     pollutants,
-    source: 'Urban Telemetry Baseline',
+    source: 'Regional Baseline Estimate',
     timestamp: new Date().toISOString(),
   };
 }
@@ -301,6 +307,7 @@ export async function GET(request: NextRequest) {
         pm10: 418,
         no2: 94,
         o3: 58,
+        co: 2.6,
       },
       source: 'Severe Smog Simulator',
       timestamp: new Date().toISOString(),
