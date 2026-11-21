@@ -3,6 +3,12 @@ import { Type } from '@google/genai';
 import { isGrapCity } from '@/lib/aqi-utils';
 import { GEMINI_MODEL, getGeminiClient, withTimeout } from '@/lib/gemini';
 import {
+  checkRateLimit,
+  safeJsonBody,
+  sanitizeAqiData,
+  sanitizeProfile,
+} from '@/lib/security';
+import {
   EXISTING_PROTECTIONS,
   HEALTH_SENSITIVITIES,
   HOME_SURROUNDINGS,
@@ -356,18 +362,34 @@ function buildFallbackRecommendations(
 }
 
 export async function POST(request: NextRequest) {
-  let profile: UserProfile | undefined;
-  let aqiData: AqiResponse | undefined;
+  let profile: UserProfile | null = null;
+  let aqiData: AqiResponse | null = null;
   try {
-    const body = await request.json();
-    profile = body.profile as UserProfile;
-    aqiData = body.aqiData as AqiResponse;
+    const rate = checkRateLimit(request, 'recommend', 20, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a minute and try again.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(rate.retryAfterSec) },
+        }
+      );
+    }
+
+    const bodyResult = await safeJsonBody<{
+      profile?: unknown;
+      aqiData?: unknown;
+    }>(request, 64_000);
+
+    if (!bodyResult.ok) {
+      return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
+    }
+
+    profile = sanitizeProfile(bodyResult.data.profile);
+    aqiData = sanitizeAqiData(bodyResult.data.aqiData);
 
     if (!profile || !aqiData) {
-      return NextResponse.json(
-        { error: 'Missing profile or aqiData' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
     }
 
     const ai = getGeminiClient();

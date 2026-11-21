@@ -4,6 +4,7 @@ import {
   getAqiCategory,
   getRegionalAdvisories,
 } from '@/lib/aqi-utils';
+import { sanitizeShortText } from '@/lib/security';
 import type { AqiResponse, PollutantLevels } from '@/types/air-quality';
 
 const CPCB_RESOURCE_URL =
@@ -289,10 +290,10 @@ function buildUrbanFallback(
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const simulate = searchParams.get('simulate');
-  const state = (searchParams.get('state') || '').trim();
-  const city = (searchParams.get('city') || '').trim();
-  const town = (searchParams.get('town') || '').trim();
+  const simulate = sanitizeShortText(searchParams.get('simulate'), 20);
+  const state = sanitizeShortText(searchParams.get('state'), 80);
+  const city = sanitizeShortText(searchParams.get('city'), 80);
+  const town = sanitizeShortText(searchParams.get('town'), 80);
 
   if (simulate === 'severe') {
     const aqi = 432;
