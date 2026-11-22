@@ -1,42 +1,35 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Bell, Menu, Users, Wind } from 'lucide-react';
+import { Bell, Menu, Wind } from 'lucide-react';
 import Dashboard from '@/components/Dashboard';
 import ExpertChatBox from '@/components/ExpertChatBox';
+import FamilyProfilesView from '@/components/FamilyProfilesView';
 import HelpGuideView from '@/components/HelpGuideView';
 import MenuDrawer, { type ActiveView } from '@/components/MenuDrawer';
 import OnboardingWizard from '@/components/OnboardingWizard';
+import {
+  createCareSpaceId,
+  getDefaultSafeAqiLimit,
+  loadCareSpaces,
+  saveCareSpaces,
+} from '@/lib/care-spaces';
 import type {
   AqiResponse,
+  CareSpaceProfile,
+  CareSpacesStore,
   RecommendationPayload,
   UserProfile,
 } from '@/types/air-quality';
 
-const STORAGE_KEY = 'smogsense_profile_v1';
-
-function isValidMultiSelectProfile(data: unknown): data is UserProfile {
-  if (!data || typeof data !== 'object') return false;
-  const candidate = data as Partial<UserProfile>;
-  return (
-    Boolean(candidate.location?.city) &&
-    Array.isArray(candidate.stepOutWindows) &&
-    Array.isArray(candidate.travelModes) &&
-    Array.isArray(candidate.householdMembers) &&
-    Array.isArray(candidate.healthSensitivities) &&
-    Array.isArray(candidate.homeSurroundings) &&
-    Array.isArray(candidate.existingProtection)
-  );
-}
-
 const VIEW_TITLES: Record<Exclude<ActiveView, 'dashboard'>, string> = {
-  profiles: 'Family Profiles',
+  profiles: 'Family Care Spaces',
   help: 'AQI Scale & Help',
   account: 'Account & Alerts',
 };
 
 export default function HomePage() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [store, setStore] = useState<CareSpacesStore | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -50,20 +43,21 @@ export default function HomePage() {
   const [loadingRecs, setLoadingRecs] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (isValidMultiSelectProfile(parsed)) {
-          setProfile(parsed);
-        } else {
-          localStorage.removeItem(STORAGE_KEY);
-        }
-      }
-    } catch {
-      // ignore storage errors
+    const loaded = loadCareSpaces();
+    if (loaded) {
+      setStore(loaded);
     }
   }, []);
+
+  const activeCareSpace: CareSpaceProfile | null = store
+    ? store.careSpaces.find((cs) => cs.id === store.activeCareSpaceId) ||
+      store.careSpaces[0] ||
+      null
+    : null;
+
+  const profile: UserProfile | null = activeCareSpace
+    ? activeCareSpace.profile
+    : null;
 
   const fetchTelemetryAndRecommendations = useCallback(
     async (
@@ -127,39 +121,128 @@ export default function HomePage() {
     }
   }, [profile, editingProfile, simulateSevere, fetchTelemetryAndRecommendations]);
 
+  const updateStore = (nextStore: CareSpacesStore) => {
+    setStore(nextStore);
+    saveCareSpaces(nextStore);
+  };
+
   const handleProfileComplete = (nextProfile: UserProfile) => {
-    setProfile(nextProfile);
     setEditingProfile(false);
     setRecommendations(null);
     setRecGeneratedBy(null);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextProfile));
-    } catch {
-      // ignore storage errors
+
+    if (!store || !activeCareSpace) {
+      const initial: CareSpaceProfile = {
+        id: createCareSpaceId(),
+        label: 'My Home',
+        city: nextProfile.location.city,
+        safeAqiLimit: getDefaultSafeAqiLimit(nextProfile),
+        profile: nextProfile,
+        updatedAt: new Date().toISOString(),
+      };
+      updateStore({
+        careSpaces: [initial],
+        activeCareSpaceId: initial.id,
+      });
+      return;
     }
+
+    const updatedSpace: CareSpaceProfile = {
+      ...activeCareSpace,
+      city: nextProfile.location.city,
+      profile: nextProfile,
+      updatedAt: new Date().toISOString(),
+    };
+    updateStore({
+      careSpaces: store.careSpaces.map((cs) =>
+        cs.id === activeCareSpace.id ? updatedSpace : cs
+      ),
+      activeCareSpaceId: activeCareSpace.id,
+    });
   };
 
   const handleCityChange = (nextCity: string) => {
-    if (!profile) return;
-    const updated: UserProfile = {
-      ...profile,
+    if (!store || !activeCareSpace) return;
+    const updatedProfile: UserProfile = {
+      ...activeCareSpace.profile,
       location: {
         city: nextCity,
         town: undefined,
       },
       updatedAt: new Date().toISOString(),
     };
-    setProfile(updated);
+    const updatedSpace: CareSpaceProfile = {
+      ...activeCareSpace,
+      city: nextCity,
+      profile: updatedProfile,
+      updatedAt: new Date().toISOString(),
+    };
     setRecommendations(null);
     setRecGeneratedBy(null);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {
-      // ignore storage errors
+    updateStore({
+      careSpaces: store.careSpaces.map((cs) =>
+        cs.id === activeCareSpace.id ? updatedSpace : cs
+      ),
+      activeCareSpaceId: activeCareSpace.id,
+    });
+  };
+
+  const handleSelectCareSpace = (id: string, switchToDashboard = false) => {
+    if (!store) return;
+    if (id !== store.activeCareSpaceId) {
+      setRecommendations(null);
+      setRecGeneratedBy(null);
+      updateStore({
+        ...store,
+        activeCareSpaceId: id,
+      });
+    }
+    if (switchToDashboard) {
+      setActiveView('dashboard');
     }
   };
 
-  if (!profile || editingProfile) {
+  const handleSaveCareSpace = (space: CareSpaceProfile) => {
+    if (!store) {
+      updateStore({
+        careSpaces: [space],
+        activeCareSpaceId: space.id,
+      });
+      return;
+    }
+    const exists = store.careSpaces.some((cs) => cs.id === space.id);
+    const nextSpaces = exists
+      ? store.careSpaces.map((cs) => (cs.id === space.id ? space : cs))
+      : [...store.careSpaces, space];
+
+    if (space.id === store.activeCareSpaceId) {
+      setRecommendations(null);
+      setRecGeneratedBy(null);
+    }
+    updateStore({
+      careSpaces: nextSpaces,
+      activeCareSpaceId: store.activeCareSpaceId,
+    });
+  };
+
+  const handleDeleteCareSpace = (id: string) => {
+    if (!store || store.careSpaces.length <= 1) return;
+    const nextSpaces = store.careSpaces.filter((cs) => cs.id !== id);
+    const nextActiveId =
+      store.activeCareSpaceId === id
+        ? nextSpaces[0].id
+        : store.activeCareSpaceId;
+    if (store.activeCareSpaceId === id) {
+      setRecommendations(null);
+      setRecGeneratedBy(null);
+    }
+    updateStore({
+      careSpaces: nextSpaces,
+      activeCareSpaceId: nextActiveId,
+    });
+  };
+
+  if (!store || !activeCareSpace || !profile || editingProfile) {
     return (
       <OnboardingWizard
         initialProfile={profile}
@@ -174,7 +257,8 @@ export default function HomePage() {
       <MenuDrawer
         open={drawerOpen}
         activeView={activeView}
-        activeCity={profile.location.city}
+        activeCity={activeCareSpace.city}
+        careSpaceCount={store.careSpaces.length}
         onSelectView={setActiveView}
         onClose={() => setDrawerOpen(false)}
         onEditProfile={() => setEditingProfile(true)}
@@ -184,6 +268,8 @@ export default function HomePage() {
         {activeView === 'dashboard' ? (
           <Dashboard
             profile={profile}
+            careSpaces={store.careSpaces}
+            activeCareSpace={activeCareSpace}
             aqiData={aqiData}
             recommendations={recommendations}
             recGeneratedBy={recGeneratedBy}
@@ -196,6 +282,7 @@ export default function HomePage() {
             }
             onEditProfile={() => setEditingProfile(true)}
             onCityChange={handleCityChange}
+            onSelectCareSpace={(id) => handleSelectCareSpace(id, false)}
             onOpenMenu={() => setDrawerOpen(true)}
           />
         ) : (
@@ -231,82 +318,13 @@ export default function HomePage() {
             {activeView === 'help' && <HelpGuideView />}
 
             {activeView === 'profiles' && (
-              <div className="space-y-5">
-                <section className="rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] p-6 space-y-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-8 w-8 rounded-xl bg-[#F4F2ED] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18]">
-                        <Users className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-[#1C1B18]">
-                          Active Routine Profile
-                        </h2>
-                        <p className="text-xs text-[#6B6860]">
-                          {profile.location.city}
-                          {profile.location.town ? ` · ${profile.location.town}` : ''}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setEditingProfile(true)}
-                      className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#1C1B18] text-white hover:bg-[#1C1B18]/90 transition-colors cursor-pointer"
-                    >
-                      Edit Routine
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] p-3.5">
-                      <div className="font-semibold text-[#6B6860] uppercase tracking-wider text-[11px] mb-1">
-                        When You Step Out
-                      </div>
-                      <div className="text-[#1C1B18]">
-                        {profile.stepOutWindows.join(', ')}
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] p-3.5">
-                      <div className="font-semibold text-[#6B6860] uppercase tracking-wider text-[11px] mb-1">
-                        How You Travel
-                      </div>
-                      <div className="text-[#1C1B18]">
-                        {profile.travelModes.join(', ')}
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] p-3.5">
-                      <div className="font-semibold text-[#6B6860] uppercase tracking-wider text-[11px] mb-1">
-                        Household &amp; Health
-                      </div>
-                      <div className="text-[#1C1B18]">
-                        {[...profile.householdMembers, ...profile.healthSensitivities].join(', ')}
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] p-3.5">
-                      <div className="font-semibold text-[#6B6860] uppercase tracking-wider text-[11px] mb-1">
-                        Home &amp; Protection
-                      </div>
-                      <div className="text-[#1C1B18]">
-                        {[...profile.homeSurroundings, ...profile.existingProtection].join(', ')}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] p-6 space-y-2">
-                  <span className="inline-block text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#F4F2ED] text-[#6B6860] border border-[#E7E5E0]">
-                    Phase 2 Preview
-                  </span>
-                  <h3 className="text-sm font-bold text-[#1C1B18]">
-                    Multi-Profile Care Spaces (Home, Parents&apos; Place, College)
-                  </h3>
-                  <p className="text-xs text-[#6B6860] leading-relaxed">
-                    Soon you&apos;ll be able to save and switch between multiple
-                    family care spaces—each with its own city, health sensitivities,
-                    and daily commute routine.
-                  </p>
-                </section>
-              </div>
+              <FamilyProfilesView
+                careSpaces={store.careSpaces}
+                activeCareSpaceId={store.activeCareSpaceId}
+                onSelectSpace={handleSelectCareSpace}
+                onSaveSpace={handleSaveCareSpace}
+                onDeleteSpace={handleDeleteCareSpace}
+              />
             )}
 
             {activeView === 'account' && (
@@ -325,7 +343,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <p className="text-xs sm:text-sm text-[#6B6860] leading-relaxed">
-                  Currently your routine profile is stored privately in your
+                  Currently your Care Spaces are stored privately in your
                   browser with zero login required. In upcoming phases, you&apos;ll
                   be able to sign in to sync profiles across devices and set
                   custom AQI threshold alerts for your family&apos;s cities.

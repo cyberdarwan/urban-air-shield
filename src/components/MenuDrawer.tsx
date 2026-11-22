@@ -17,6 +17,7 @@ interface MenuDrawerProps {
   open: boolean;
   activeView: ActiveView;
   activeCity: string;
+  careSpaceCount?: number;
   onSelectView: (view: ActiveView) => void;
   onClose: () => void;
   onEditProfile: () => void;
@@ -58,6 +59,7 @@ export default function MenuDrawer({
   open,
   activeView,
   activeCity,
+  careSpaceCount,
   onSelectView,
   onClose,
   onEditProfile,
@@ -138,8 +140,16 @@ export default function MenuDrawer({
                       isActive ? 'text-[#1C1B18]' : 'text-[#6B6860]'
                     }`}
                   />
-                  <div>
-                    <div className="text-sm leading-tight">{item.label}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm leading-tight">{item.label}</span>
+                      {item.id === 'profiles' &&
+                        typeof careSpaceCount === 'number' && (
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#FFFFFF] text-[#1C1B18] border border-[#E7E5E0]">
+                            {careSpaceCount}
+                          </span>
+                        )}
+                    </div>
                     <div className="text-[11px] text-[#6B6860] mt-0.5">
                       {item.subtitle}
                     </div>

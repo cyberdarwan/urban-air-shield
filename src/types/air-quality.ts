@@ -256,3 +256,17 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+export interface CareSpaceProfile {
+  id: string;
+  label: string;
+  city: string;
+  safeAqiLimit: number;
+  profile: UserProfile;
+  updatedAt: string;
+}
+
+export interface CareSpacesStore {
+  careSpaces: CareSpaceProfile[];
+  activeCareSpaceId: string;
+}
