@@ -18,6 +18,7 @@ interface MenuDrawerProps {
   activeView: ActiveView;
   activeCity: string;
   careSpaceCount?: number;
+  userEmail?: string | null;
   onSelectView: (view: ActiveView) => void;
   onClose: () => void;
   onEditProfile: () => void;
@@ -60,6 +61,7 @@ export default function MenuDrawer({
   activeView,
   activeCity,
   careSpaceCount,
+  userEmail,
   onSelectView,
   onClose,
   onEditProfile,
@@ -162,6 +164,24 @@ export default function MenuDrawer({
 
         {/* Drawer Footer */}
         <div className="p-4 border-t border-[#E7E5E0] bg-[#FAF9F6] space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border truncate max-w-full ${
+                userEmail
+                  ? 'bg-[#EDF6F0] text-[#2E6F40] border-[#CBE6D3]'
+                  : 'bg-[#FFFFFF] text-[#6B6860] border-[#E7E5E0]'
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                  userEmail ? 'bg-[#2E6F40]' : 'bg-[#6B6860]'
+                }`}
+              />
+              <span className="truncate">
+                {userEmail ? `Synced · ${userEmail}` : 'Guest Mode (Local)'}
+              </span>
+            </span>
+          </div>
           <div className="flex items-center gap-2 text-xs text-[#6B6860]">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-[#1C1B18]" />
             <span className="truncate">

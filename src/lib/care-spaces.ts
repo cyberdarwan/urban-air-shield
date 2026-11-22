@@ -1,3 +1,4 @@
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type {
   AqiResponse,
   CareSpaceProfile,
@@ -20,7 +21,11 @@ export function createCareSpaceId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return `cs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 export function getDefaultSafeAqiLimit(profile: UserProfile): number {
@@ -186,3 +191,162 @@ export async function shareViaWhatsApp(
   }
   return 'copied';
 }
+
+interface CloudCareSpaceRow {
+  id: string;
+  user_id: string;
+  label: string;
+  city: string;
+  safe_aqi_limit: number;
+  profile: UserProfile;
+  notify_enabled: boolean;
+  last_alert_status: string | null;
+  updated_at: string;
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function toValidUuid(id: string): string {
+  return UUID_REGEX.test(id) ? id : createCareSpaceId();
+}
+
+function fromCloudRow(row: CloudCareSpaceRow): CareSpaceProfile {
+  return {
+    id: row.id,
+    label: row.label,
+    city: row.city,
+    safeAqiLimit: row.safe_aqi_limit,
+    profile: row.profile,
+    notifyEnabled: row.notify_enabled,
+    lastAlertStatus: row.last_alert_status,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toCloudRow(userId: string, space: CareSpaceProfile): CloudCareSpaceRow {
+  return {
+    id: toValidUuid(space.id),
+    user_id: userId,
+    label: space.label,
+    city: space.city,
+    safe_aqi_limit: space.safeAqiLimit,
+    profile: space.profile,
+    notify_enabled: Boolean(space.notifyEnabled),
+    last_alert_status: space.lastAlertStatus ?? null,
+    updated_at: space.updatedAt || new Date().toISOString(),
+  };
+}
+
+export async function upsertCareSpaceInCloud(
+  userId: string,
+  space: CareSpaceProfile
+): Promise<void> {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return;
+  try {
+    await supabase.from('care_spaces').upsert(toCloudRow(userId, space), {
+      onConflict: 'id',
+    });
+  } catch (err) {
+    console.warn('Cloud upsert failed:', err);
+  }
+}
+
+export async function deleteCareSpaceInCloud(
+  userId: string,
+  spaceId: string
+): Promise<void> {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase || !UUID_REGEX.test(spaceId)) return;
+  try {
+    await supabase
+      .from('care_spaces')
+      .delete()
+      .eq('id', spaceId)
+      .eq('user_id', userId);
+  } catch (err) {
+    console.warn('Cloud delete failed:', err);
+  }
+}
+
+export async function syncCareSpacesOnSignIn(
+  userId: string,
+  localStore: CareSpacesStore | null
+): Promise<CareSpacesStore | null> {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return localStore;
+
+  try {
+    const { data, error } = await supabase
+      .from('care_spaces')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: true });
+
+    if (error) {
+      console.warn('Failed to fetch cloud care spaces:', error.message);
+      return localStore;
+    }
+
+    const cloudRows = (data || []) as CloudCareSpaceRow[];
+    const cloudSpaces = cloudRows.map(fromCloudRow);
+    const localSpaces = localStore?.careSpaces || [];
+
+    if (cloudSpaces.length === 0 && localSpaces.length > 0) {
+      // First sign-in: migrate all guest local Care Spaces into Supabase
+      const rowsToInsert = localSpaces.map((s) => toCloudRow(userId, s));
+      await supabase
+        .from('care_spaces')
+        .upsert(rowsToInsert, { onConflict: 'id' });
+
+      const migrated: CareSpacesStore = {
+        careSpaces: rowsToInsert.map(fromCloudRow),
+        activeCareSpaceId:
+          rowsToInsert[0]?.id || localStore?.activeCareSpaceId || '',
+      };
+      saveCareSpaces(migrated);
+      return migrated;
+    }
+
+    if (cloudSpaces.length > 0) {
+      // Merge any non-duplicate local spaces into cloud
+      const cloudKeySet = new Set(
+        cloudSpaces.map(
+          (s) => `${s.label.trim().toLowerCase()}|${s.city.trim().toLowerCase()}`
+        )
+      );
+      const nonDuplicates = localSpaces.filter((s) => {
+        const key = `${s.label.trim().toLowerCase()}|${s.city.trim().toLowerCase()}`;
+        return !cloudKeySet.has(key);
+      });
+
+      if (nonDuplicates.length > 0) {
+        const extraRows = nonDuplicates.map((s) => toCloudRow(userId, s));
+        await supabase
+          .from('care_spaces')
+          .upsert(extraRows, { onConflict: 'id' });
+        cloudSpaces.push(...extraRows.map(fromCloudRow));
+      }
+
+      const activeId =
+        localStore?.activeCareSpaceId &&
+        cloudSpaces.some((s) => s.id === localStore.activeCareSpaceId)
+          ? localStore.activeCareSpaceId
+          : cloudSpaces[0].id;
+
+      const unified: CareSpacesStore = {
+        careSpaces: cloudSpaces,
+        activeCareSpaceId: activeId,
+      };
+      saveCareSpaces(unified);
+      return unified;
+    }
+
+    return localStore;
+  } catch (err) {
+    console.warn('Cloud sync error:', err);
+    return localStore;
+  }
+}
+

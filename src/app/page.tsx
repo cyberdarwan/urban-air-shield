@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Bell, Menu, Wind } from 'lucide-react';
+import type { User } from '@supabase/supabase-js';
+import { Menu, Wind } from 'lucide-react';
+import AccountAuthView from '@/components/AccountAuthView';
 import Dashboard from '@/components/Dashboard';
 import ExpertChatBox from '@/components/ExpertChatBox';
 import FamilyProfilesView from '@/components/FamilyProfilesView';
@@ -10,10 +12,14 @@ import MenuDrawer, { type ActiveView } from '@/components/MenuDrawer';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import {
   createCareSpaceId,
+  deleteCareSpaceInCloud,
   getDefaultSafeAqiLimit,
   loadCareSpaces,
   saveCareSpaces,
+  syncCareSpacesOnSignIn,
+  upsertCareSpaceInCloud,
 } from '@/lib/care-spaces';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type {
   AqiResponse,
   CareSpaceProfile,
@@ -30,6 +36,9 @@ const VIEW_TITLES: Record<Exclude<ActiveView, 'dashboard'>, string> = {
 
 export default function HomePage() {
   const [store, setStore] = useState<CareSpacesStore | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [syncingCloud, setSyncingCloud] = useState(false);
+
   const [editingProfile, setEditingProfile] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -47,6 +56,44 @@ export default function HomePage() {
     if (loaded) {
       setStore(loaded);
     }
+
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const runSync = async (signedInUser: User) => {
+      setSyncingCloud(true);
+      try {
+        const currentLocal = loadCareSpaces();
+        const synced = await syncCareSpacesOnSignIn(
+          signedInUser.id,
+          currentLocal
+        );
+        if (synced) {
+          setStore(synced);
+        }
+      } finally {
+        setSyncingCloud(false);
+      }
+    };
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setUser(data.user);
+        runSync(data.user);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      if (nextUser) {
+        runSync(nextUser);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const activeCareSpace: CareSpaceProfile | null = store
@@ -144,6 +191,9 @@ export default function HomePage() {
         careSpaces: [initial],
         activeCareSpaceId: initial.id,
       });
+      if (user) {
+        upsertCareSpaceInCloud(user.id, initial);
+      }
       return;
     }
 
@@ -159,6 +209,9 @@ export default function HomePage() {
       ),
       activeCareSpaceId: activeCareSpace.id,
     });
+    if (user) {
+      upsertCareSpaceInCloud(user.id, updatedSpace);
+    }
   };
 
   const handleCityChange = (nextCity: string) => {
@@ -185,6 +238,9 @@ export default function HomePage() {
       ),
       activeCareSpaceId: activeCareSpace.id,
     });
+    if (user) {
+      upsertCareSpaceInCloud(user.id, updatedSpace);
+    }
   };
 
   const handleSelectCareSpace = (id: string, switchToDashboard = false) => {
@@ -208,6 +264,9 @@ export default function HomePage() {
         careSpaces: [space],
         activeCareSpaceId: space.id,
       });
+      if (user) {
+        upsertCareSpaceInCloud(user.id, space);
+      }
       return;
     }
     const exists = store.careSpaces.some((cs) => cs.id === space.id);
@@ -223,6 +282,9 @@ export default function HomePage() {
       careSpaces: nextSpaces,
       activeCareSpaceId: store.activeCareSpaceId,
     });
+    if (user) {
+      upsertCareSpaceInCloud(user.id, space);
+    }
   };
 
   const handleDeleteCareSpace = (id: string) => {
@@ -240,6 +302,49 @@ export default function HomePage() {
       careSpaces: nextSpaces,
       activeCareSpaceId: nextActiveId,
     });
+    if (user) {
+      deleteCareSpaceInCloud(user.id, id);
+    }
+  };
+
+  const handleToggleNotify = (spaceId: string, enabled: boolean) => {
+    if (!store) return;
+    const target = store.careSpaces.find((cs) => cs.id === spaceId);
+    if (!target) return;
+    const updated: CareSpaceProfile = {
+      ...target,
+      notifyEnabled: enabled,
+      updatedAt: new Date().toISOString(),
+    };
+    updateStore({
+      careSpaces: store.careSpaces.map((cs) =>
+        cs.id === spaceId ? updated : cs
+      ),
+      activeCareSpaceId: store.activeCareSpaceId,
+    });
+    if (user) {
+      upsertCareSpaceInCloud(user.id, updated);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    if (!user) return;
+    setSyncingCloud(true);
+    try {
+      const synced = await syncCareSpacesOnSignIn(user.id, store);
+      if (synced) {
+        setStore(synced);
+      }
+    } finally {
+      setSyncingCloud(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setUser(null);
   };
 
   if (!store || !activeCareSpace || !profile || editingProfile) {
@@ -259,6 +364,7 @@ export default function HomePage() {
         activeView={activeView}
         activeCity={activeCareSpace.city}
         careSpaceCount={store.careSpaces.length}
+        userEmail={user?.email ?? null}
         onSelectView={setActiveView}
         onClose={() => setDrawerOpen(false)}
         onEditProfile={() => setEditingProfile(true)}
@@ -328,27 +434,14 @@ export default function HomePage() {
             )}
 
             {activeView === 'account' && (
-              <section className="rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] p-6 space-y-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-xl bg-[#F4F2ED] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18]">
-                    <Bell className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="inline-block text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#F4F2ED] text-[#6B6860] border border-[#E7E5E0] mb-1">
-                      Phases 3–4 Preview
-                    </span>
-                    <h2 className="text-base font-bold text-[#1C1B18]">
-                      Account Sync &amp; Threshold Alerts
-                    </h2>
-                  </div>
-                </div>
-                <p className="text-xs sm:text-sm text-[#6B6860] leading-relaxed">
-                  Currently your Care Spaces are stored privately in your
-                  browser with zero login required. In upcoming phases, you&apos;ll
-                  be able to sign in to sync profiles across devices and set
-                  custom AQI threshold alerts for your family&apos;s cities.
-                </p>
-              </section>
+              <AccountAuthView
+                user={user}
+                careSpaces={store.careSpaces}
+                syncing={syncingCloud}
+                onSyncNow={handleSyncNow}
+                onToggleNotify={handleToggleNotify}
+                onSignOut={handleSignOut}
+              />
             )}
           </>
         )}

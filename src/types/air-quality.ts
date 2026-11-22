@@ -263,6 +263,8 @@ export interface CareSpaceProfile {
   city: string;
   safeAqiLimit: number;
   profile: UserProfile;
+  notifyEnabled?: boolean;
+  lastAlertStatus?: string | null;
   updatedAt: string;
 }
 
