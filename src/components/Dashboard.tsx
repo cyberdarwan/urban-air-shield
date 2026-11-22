@@ -17,6 +17,7 @@ import {
   Wind,
 } from 'lucide-react';
 import CitySelector from '@/components/CitySelector';
+import HourlyAirWave from '@/components/HourlyAirWave';
 import { buildHourlyTimeline } from '@/lib/aqi-utils';
 import type {
   AqiCategory,
@@ -351,33 +352,10 @@ export default function Dashboard({
           </div>
         )}
 
-        <div className="grid grid-cols-3 sm:grid-cols-9 gap-2">
-          {timeline.map((slot) => {
-            const slotStyle =
-              slot.status === 'Safe Window'
-                ? 'bg-[#ECFDF5] border-[#A7F3D0] text-[#059669]'
-                : slot.status === 'Peak Smog'
-                  ? 'bg-[#FFF1F2] border-[#FECDD3] text-[#E11D48]'
-                  : 'bg-[#FFFBEB] border-[#FDE68A] text-[#D97706]';
-
-            return (
-              <div
-                key={slot.hourLabel}
-                className={`rounded-xl border p-2.5 text-center ${slotStyle}`}
-              >
-                <div className="text-[11px] font-semibold">
-                  {slot.hourLabel}
-                </div>
-                <div className="text-base font-bold text-[#0F172A] my-0.5 tabular-nums">
-                  {slot.estimatedAqi}
-                </div>
-                <div className="text-[10px] font-semibold uppercase tracking-wide">
-                  {slot.status}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <HourlyAirWave
+          timeline={timeline}
+          stepOutWindows={profile.stepOutWindows}
+        />
       </section>
 
       {/* Today's Practical Moves vs. Future Upgrades */}
