@@ -365,12 +365,17 @@ export default function HomePage() {
         activeCity={activeCareSpace.city}
         careSpaceCount={store.careSpaces.length}
         userEmail={user?.email ?? null}
+        loadingAqi={loadingAqi}
+        simulateSevere={simulateSevere}
         onSelectView={setActiveView}
         onClose={() => setDrawerOpen(false)}
-        onEditProfile={() => setEditingProfile(true)}
+        onRefresh={() =>
+          fetchTelemetryAndRecommendations(profile, simulateSevere)
+        }
+        onToggleSimulate={() => setSimulateSevere((prev) => !prev)}
       />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-24 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-28 space-y-6">
         {activeView === 'dashboard' ? (
           <Dashboard
             profile={profile}
@@ -382,11 +387,6 @@ export default function HomePage() {
             loadingAqi={loadingAqi}
             loadingRecs={loadingRecs}
             simulateSevere={simulateSevere}
-            onToggleSimulate={() => setSimulateSevere((prev) => !prev)}
-            onRefresh={() =>
-              fetchTelemetryAndRecommendations(profile, simulateSevere)
-            }
-            onEditProfile={() => setEditingProfile(true)}
             onCityChange={handleCityChange}
             onSelectCareSpace={(id) => handleSelectCareSpace(id, false)}
             onOpenMenu={() => setDrawerOpen(true)}
@@ -446,7 +446,12 @@ export default function HomePage() {
           </>
         )}
       </div>
-      <ExpertChatBox profile={profile} aqiData={aqiData} />
+      <ExpertChatBox
+        profile={profile}
+        activeCareSpace={activeCareSpace}
+        aqiData={aqiData}
+        recommendations={recommendations}
+      />
     </main>
   );
 }

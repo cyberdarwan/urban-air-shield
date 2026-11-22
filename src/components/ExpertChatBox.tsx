@@ -1,19 +1,41 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MessageSquare, RotateCcw, Send, User, X } from 'lucide-react';
-import type { AqiResponse, ChatMessage, UserProfile } from '@/types/air-quality';
+import {
+  MessageSquare,
+  RotateCcw,
+  Send,
+  Share2,
+  User,
+  X,
+} from 'lucide-react';
+import { formatWhatsAppBrief, shareViaWhatsApp } from '@/lib/care-spaces';
+import type {
+  AqiResponse,
+  CareSpaceProfile,
+  ChatMessage,
+  RecommendationPayload,
+  UserProfile,
+} from '@/types/air-quality';
 
 interface ExpertChatBoxProps {
   profile: UserProfile;
+  activeCareSpace: CareSpaceProfile;
   aqiData: AqiResponse | null;
+  recommendations: RecommendationPayload | null;
 }
 
-export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) {
+export default function ExpertChatBox({
+  profile,
+  activeCareSpace,
+  aqiData,
+  recommendations,
+}: ExpertChatBoxProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -108,18 +130,38 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
     }
   };
 
+  const handleWhatsAppShare = async () => {
+    if (!aqiData) return;
+    const message = formatWhatsAppBrief(
+      activeCareSpace,
+      aqiData,
+      recommendations
+    );
+    const result = await shareViaWhatsApp(message);
+    if (result === 'copied') {
+      setShareToast('Morning air brief copied to clipboard');
+      setTimeout(() => setShareToast(null), 2500);
+    }
+  };
+
   const contextSubtitle = `${profile.location.city}${
     aqiData ? ` · ${aqiData.aqi} AQI` : ''
   }`;
 
   return (
     <>
-      {/* Floating Popover Chat Window */}
+      {shareToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#1C1B18] text-white text-xs font-medium shadow-md">
+          {shareToast}
+        </div>
+      )}
+
+      {/* Floating Popover Chat Window positioned cleanly above the stacked FABs */}
       {open && (
         <section
           role="dialog"
           aria-label="Ask the Air Expert"
-          className="fixed bottom-20 right-5 z-40 w-[calc(100vw-2.5rem)] sm:w-[380px] max-h-[72vh] flex flex-col rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] shadow-xl overflow-hidden"
+          className="fixed bottom-36 right-6 z-40 w-[calc(100vw-3rem)] sm:w-[380px] max-h-[68vh] flex flex-col rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] shadow-xl overflow-hidden"
         >
           {/* Header */}
           <div className="px-4 py-3 border-b border-[#E7E5E0] flex items-center justify-between gap-2 bg-[#FFFFFF]">
@@ -256,30 +298,34 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
         </section>
       )}
 
-      {/* Floating Bottom-Right Launcher Button */}
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-label={open ? 'Close Air Expert chat' : 'Open Ask Air Expert chat'}
-        aria-expanded={open}
-        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 px-3.5 sm:px-4 py-3 rounded-full bg-[#1C1B18] text-[#FAF9F6] border border-[#1C1B18] shadow-md hover:bg-[#1C1B18]/90 transition-all cursor-pointer"
-      >
-        {open ? (
-          <>
-            <X className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline text-xs font-semibold">
-              Close Chat
-            </span>
-          </>
-        ) : (
-          <>
-            <MessageSquare className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline text-xs font-semibold">
-              Ask Air Expert
-            </span>
-          </>
-        )}
-      </button>
+      {/* Stacked Circular Floating Action Buttons */}
+      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-center gap-3">
+        {/* Top Circular FAB: Share on WhatsApp */}
+        <button
+          type="button"
+          onClick={handleWhatsAppShare}
+          disabled={!aqiData}
+          aria-label="Share on WhatsApp"
+          title="Share on WhatsApp"
+          className="h-[52px] w-[52px] rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#059669] shadow-md hover:scale-105 transition-transform flex items-center justify-center cursor-pointer disabled:opacity-50"
+        >
+          <Share2 className="h-5 w-5" />
+        </button>
+
+        {/* Bottom Circular FAB: AI Chatbot */}
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          aria-label={
+            open ? 'Close Air Expert chat' : 'Open Ask Air Expert chat'
+          }
+          title={open ? 'Close Air Expert' : 'Ask Air Expert'}
+          aria-expanded={open}
+          className="h-[52px] w-[52px] rounded-full bg-[#1C1B18] text-[#FAF9F6] border border-[#1C1B18] shadow-md hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+        >
+          {open ? <X className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
+        </button>
+      </div>
     </>
   );
 }

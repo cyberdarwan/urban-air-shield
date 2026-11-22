@@ -4,8 +4,10 @@ import React, { useEffect } from 'react';
 import {
   Bell,
   BookOpen,
+  Flame,
   LayoutDashboard,
   MapPin,
+  RefreshCw,
   Users,
   Wind,
   X,
@@ -19,9 +21,12 @@ interface MenuDrawerProps {
   activeCity: string;
   careSpaceCount?: number;
   userEmail?: string | null;
+  loadingAqi: boolean;
+  simulateSevere: boolean;
   onSelectView: (view: ActiveView) => void;
   onClose: () => void;
-  onEditProfile: () => void;
+  onRefresh: () => void;
+  onToggleSimulate: () => void;
 }
 
 const NAV_ITEMS: Array<{
@@ -62,9 +67,12 @@ export default function MenuDrawer({
   activeCity,
   careSpaceCount,
   userEmail,
+  loadingAqi,
+  simulateSevere,
   onSelectView,
   onClose,
-  onEditProfile,
+  onRefresh,
+  onToggleSimulate,
 }: MenuDrawerProps) {
   useEffect(() => {
     if (!open) return;
@@ -92,7 +100,7 @@ export default function MenuDrawer({
         aria-label="Navigation menu"
         className="relative z-50 w-72 sm:w-80 max-w-[85vw] h-full bg-[#FFFFFF] border-r border-[#E7E5E0] shadow-xl flex flex-col justify-between"
       >
-        <div>
+        <div className="overflow-y-auto">
           {/* Drawer Header */}
           <div className="px-5 py-4 border-b border-[#E7E5E0] flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -160,10 +168,52 @@ export default function MenuDrawer({
               );
             })}
           </nav>
+
+          {/* Quick Controls */}
+          <div className="px-4 py-3 border-t border-[#E7E5E0] space-y-2.5">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6860]">
+              Quick Controls
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                onRefresh();
+                onClose();
+              }}
+              disabled={loadingAqi}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium bg-[#FAF9F6] text-[#1C1B18] border border-[#E7E5E0] hover:border-[#1C1B18]/40 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <span>Refresh Live AQI</span>
+              <RefreshCw
+                className={`h-3.5 w-3.5 text-[#6B6860] ${
+                  loadingAqi ? 'animate-spin' : ''
+                }`}
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={onToggleSimulate}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium border transition-colors cursor-pointer ${
+                simulateSevere
+                  ? 'bg-[#F9ECEC] text-[#7F1D1D] border-[#E8B8B8]'
+                  : 'bg-[#FAF9F6] text-[#1C1B18] border-[#E7E5E0] hover:border-[#1C1B18]/40'
+              }`}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Flame className="h-3.5 w-3.5" />
+                Simulate Severe Smog
+              </span>
+              <span className="text-[11px] font-semibold">
+                {simulateSevere ? 'ON' : 'OFF'}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Drawer Footer */}
-        <div className="p-4 border-t border-[#E7E5E0] bg-[#FAF9F6] space-y-3">
+        <div className="p-4 border-t border-[#E7E5E0] bg-[#FAF9F6] space-y-2.5">
           <div className="flex items-center justify-between gap-2">
             <span
               className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border truncate max-w-full ${
@@ -188,16 +238,6 @@ export default function MenuDrawer({
               Active City: <strong className="text-[#1C1B18]">{activeCity}</strong>
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onEditProfile();
-            }}
-            className="w-full px-3.5 py-2 rounded-xl text-xs font-medium bg-[#FFFFFF] text-[#1C1B18] border border-[#E7E5E0] hover:border-[#1C1B18]/40 transition-colors cursor-pointer"
-          >
-            Edit Routine Profile
-          </button>
         </div>
       </aside>
     </div>

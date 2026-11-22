@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   AlertTriangle,
   Bus,
@@ -10,18 +10,14 @@ import {
   HeartPulse,
   Home,
   Menu,
-  RefreshCw,
-  Share2,
   ShieldAlert,
   ShieldCheck,
-  SlidersHorizontal,
   Sun,
   TrendingUp,
   Wind,
 } from 'lucide-react';
 import CitySelector from '@/components/CitySelector';
 import { buildHourlyTimeline } from '@/lib/aqi-utils';
-import { formatWhatsAppBrief, shareViaWhatsApp } from '@/lib/care-spaces';
 import type {
   AqiCategory,
   AqiResponse,
@@ -40,9 +36,6 @@ interface DashboardProps {
   loadingAqi: boolean;
   loadingRecs: boolean;
   simulateSevere: boolean;
-  onToggleSimulate: () => void;
-  onRefresh: () => void;
-  onEditProfile: () => void;
   onCityChange: (city: string) => void;
   onSelectCareSpace: (id: string) => void;
   onOpenMenu: () => void;
@@ -81,14 +74,10 @@ export default function Dashboard({
   loadingAqi,
   loadingRecs,
   simulateSevere,
-  onToggleSimulate,
-  onRefresh,
-  onEditProfile,
   onCityChange,
   onSelectCareSpace,
   onOpenMenu,
 }: DashboardProps) {
-  const [shareToast, setShareToast] = useState<string | null>(null);
   const timeline = aqiData ? buildHourlyTimeline(aqiData.aqi) : [];
   const badgeStyle = getCpcbBadgeStyle(aqiData?.category);
 
@@ -105,107 +94,47 @@ export default function Dashboard({
   const isSafeToMove =
     aqiData !== null ? aqiData.aqi <= activeCareSpace.safeAqiLimit : null;
 
-  const handleWhatsAppShare = async () => {
-    if (!aqiData) return;
-    const message = formatWhatsAppBrief(
-      activeCareSpace,
-      aqiData,
-      recommendations
-    );
-    const result = await shareViaWhatsApp(message);
-    if (result === 'copied') {
-      setShareToast('Morning air brief copied to clipboard');
-      setTimeout(() => setShareToast(null), 2500);
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {shareToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#1C1B18] text-white text-xs font-medium shadow-md">
-          {shareToast}
-        </div>
-      )}
 
       {/* Minimal Editorial Top Bar */}
       <header className="space-y-3 pb-3 border-b border-[#E7E5E0]">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={onOpenMenu}
-              aria-label="Open navigation menu"
-              className="h-9 w-9 rounded-xl bg-[#FFFFFF] border border-[#E7E5E0] hover:border-[#1C1B18]/40 flex items-center justify-center text-[#1C1B18] transition-colors cursor-pointer"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            aria-label="Open navigation menu"
+            className="h-9 w-9 rounded-xl bg-[#FFFFFF] border border-[#E7E5E0] hover:border-[#1C1B18]/40 flex items-center justify-center text-[#1C1B18] transition-colors cursor-pointer"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
 
-            <div className="flex items-center gap-2">
-              <Wind className="h-4 w-4 text-[#6B6860]" />
-              <h1 className="text-xl font-bold tracking-tight text-[#1C1B18]">
-                SmogSense
-              </h1>
-              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[#F4F2ED] text-[#1C1B18] border border-[#E7E5E0]">
-                {activeCareSpace.label}
-              </span>
-            </div>
-
-            <CitySelector
-              value={profile.location.city}
-              onChange={onCityChange}
-              variant="compact"
-            />
-
-            <span className="text-xs text-[#6B6860]">
-              {aqiData?.stationName || 'Loading station...'} · {formattedIstTime}
+          <div className="flex items-center gap-2">
+            <Wind className="h-4 w-4 text-[#6B6860]" />
+            <h1 className="text-xl font-bold tracking-tight text-[#1C1B18]">
+              SmogSense
+            </h1>
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[#F4F2ED] text-[#1C1B18] border border-[#E7E5E0]">
+              {activeCareSpace.label}
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleWhatsAppShare}
-              disabled={!aqiData}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#EDF6F0] text-[#2E6F40] border border-[#CBE6D3] hover:bg-[#E1F1E6] transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <Share2 className="h-3.5 w-3.5" />
-              Share on WhatsApp
-            </button>
+          <CitySelector
+            value={profile.location.city}
+            onChange={onCityChange}
+            variant="compact"
+          />
 
-            <button
-              type="button"
-              onClick={onToggleSimulate}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
-                simulateSevere
-                  ? 'bg-[#F9ECEC] text-[#7F1D1D] border-[#E8B8B8]'
-                  : 'bg-[#FFFFFF] text-[#1C1B18] border-[#E7E5E0] hover:border-[#1C1B18]/40'
-              }`}
-            >
-              <Flame className="h-3.5 w-3.5" />
-              {simulateSevere ? 'Severe Smog: ON (432)' : 'Simulate Severe Smog'}
-            </button>
+          {simulateSevere && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F9ECEC] text-[#7F1D1D] border border-[#E8B8B8]">
+              <Flame className="h-3 w-3" />
+              Simulated Severe (432)
+            </span>
+          )}
+        </div>
 
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={loadingAqi}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#FFFFFF] text-[#1C1B18] border border-[#E7E5E0] hover:border-[#1C1B18]/40 transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${loadingAqi ? 'animate-spin' : ''}`}
-              />
-              Refresh
-            </button>
-
-            <button
-              type="button"
-              onClick={onEditProfile}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#1C1B18] text-white hover:bg-[#1C1B18]/90 transition-colors cursor-pointer"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Edit Profile
-            </button>
-          </div>
+        <div className="text-xs text-[#6B6860]">
+          {aqiData?.stationName || 'Loading station...'} · {formattedIstTime}
         </div>
 
         {/* Quick Care Space Switcher Pill Bar */}

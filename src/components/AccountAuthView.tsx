@@ -38,7 +38,108 @@ export default function AccountAuthView({
   const [sendingLink, setSendingLink] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushStatusMsg, setPushStatusMsg] = useState<string | null>(null);
   const supabaseReady = isSupabaseConfigured();
+
+  const urlBase64ToUint8Array = (base64String: string) => {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  const handleEnableBrowserPush = async () => {
+    setPushStatusMsg(null);
+    if (
+      typeof window === 'undefined' ||
+      !('Notification' in window) ||
+      !('serviceWorker' in navigator) ||
+      !('PushManager' in window)
+    ) {
+      setPushStatusMsg('Browser push notifications are not supported here.');
+      return;
+    }
+
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      setPushStatusMsg(
+        'NEXT_PUBLIC_VAPID_PUBLIC_KEY is not configured yet in this environment.'
+      );
+      return;
+    }
+
+    setPushLoading(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushStatusMsg('Notification permission was denied in browser settings.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+      }
+
+      const res = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'subscribe',
+          subscription: subscription.toJSON(),
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        setPushStatusMsg(errJson.error || 'Could not save push subscription.');
+        return;
+      }
+
+      setPushEnabled(true);
+      setPushStatusMsg('Browser push alerts enabled on this device.');
+    } catch {
+      setPushStatusMsg('Failed to register push notifications.');
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleSendTestAlert = async () => {
+    setPushLoading(true);
+    setPushStatusMsg(null);
+    try {
+      const res = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPushStatusMsg(data.error || 'Could not send test alert.');
+      } else {
+        setPushStatusMsg(`Test alert sent to ${data.sent ?? 1} device(s).`);
+      }
+    } catch {
+      setPushStatusMsg('Network error sending test alert.');
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     const supabase = createSupabaseBrowserClient();
@@ -256,21 +357,43 @@ export default function AccountAuthView({
 
       {/* Per-Care-Space Phase 4 Threshold Notification Toggles */}
       <section className="rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] p-6 space-y-4">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4 text-[#1C1B18]" />
             <h3 className="text-base font-bold text-[#1C1B18]">
-              Threshold Alerts (Phase 4 Ready)
+              Browser Threshold Alerts
             </h3>
           </div>
-          <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-[#F4F2ED] text-[#6B6860] border border-[#E7E5E0]">
-            Saved to Cloud
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleEnableBrowserPush}
+              disabled={pushLoading}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#1C1B18] text-white hover:bg-[#1C1B18]/90 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Bell className="h-3.5 w-3.5" />
+              {pushEnabled ? 'Push Enabled' : 'Enable Browser Push Alerts'}
+            </button>
+            <button
+              type="button"
+              onClick={handleSendTestAlert}
+              disabled={pushLoading}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#F4F2ED] text-[#1C1B18] border border-[#E7E5E0] hover:border-[#1C1B18]/40 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Send Test Alert
+            </button>
+          </div>
         </div>
         <p className="text-xs text-[#6B6860]">
-          Choose which Care Spaces should trigger alerts when live AQI crosses
-          their Safe AQI Limit.
+          Enable browser push on this device, then choose which Care Spaces
+          should alert you when live AQI crosses their Safe AQI Limit.
         </p>
+
+        {pushStatusMsg && (
+          <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-xs text-[#1C1B18]">
+            {pushStatusMsg}
+          </div>
+        )}
 
         <div className="space-y-2.5">
           {careSpaces.map((space) => {
