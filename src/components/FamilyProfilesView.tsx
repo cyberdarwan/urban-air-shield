@@ -101,7 +101,7 @@ function ChipGroup({
 
   return (
     <div className="space-y-2">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6860]">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-[#475569]">
         {title}
       </div>
       <div className="flex flex-wrap gap-1.5">
@@ -114,8 +114,8 @@ function ChipGroup({
               onClick={() => onChange(toggleMulti(values, item, exclusiveItem))}
               className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
                 active
-                  ? 'bg-[#1C1B18] text-white border-[#1C1B18]'
-                  : 'bg-[#F4F2ED] text-[#1C1B18] border-[#E7E5E0] hover:border-[#1C1B18]/40'
+                  ? 'bg-[#0F172A] text-white border-[#0F172A]'
+                  : 'bg-[#F4F2ED] text-[#0F172A] border-[#E7E5E0] hover:border-[#0F172A]/40'
               }`}
             >
               {active && <Check className="h-3 w-3 shrink-0" />}
@@ -127,7 +127,7 @@ function ChipGroup({
         {customValues.map((item) => (
           <span
             key={item}
-            className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-full text-xs font-medium bg-[#1C1B18] text-white border border-[#1C1B18]"
+            className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-full text-xs font-medium bg-[#0F172A] text-white border border-[#0F172A]"
           >
             <span>{item}</span>
             <button
@@ -150,7 +150,7 @@ function ChipGroup({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-[#FFFFFF] text-[#6B6860] border border-dashed border-[#E7E5E0] hover:border-[#1C1B18]/40 hover:text-[#1C1B18] cursor-pointer"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-white/80 backdrop-blur-md text-[#475569] border border-dashed border-[#E7E5E0] hover:border-[#0F172A]/40 hover:text-[#0F172A] cursor-pointer"
           >
             <Plus className="h-3 w-3" />
             Other
@@ -175,12 +175,12 @@ function ChipGroup({
             }}
             placeholder="Add custom detail..."
             autoFocus
-            className="flex-1 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3 py-1.5 text-xs text-[#1C1B18] focus:outline-none focus:border-[#1C1B18]"
+            className="flex-1 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3 py-1.5 text-xs text-[#0F172A] focus:outline-none focus:border-[#0F172A]"
           />
           <button
             type="button"
             onClick={addCustom}
-            className="px-3 py-1.5 rounded-xl bg-[#1C1B18] text-white text-xs font-medium cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-[#0F172A] text-white text-xs font-medium cursor-pointer"
           >
             Add
           </button>
@@ -381,19 +381,19 @@ export default function FamilyProfilesView({
   return (
     <div className="space-y-6">
       {toast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#1C1B18] text-white text-xs font-medium shadow-md">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#0F172A] text-white text-xs font-medium shadow-md">
           {toast}
         </div>
       )}
 
       {/* Live Multi-City Family Rollup Card */}
-      <section className="rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] p-6 space-y-4">
+      <section className="rounded-2xl bg-white/80 backdrop-blur-md border border-[#E7E5E0] p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold text-[#1C1B18]">
+            <h2 className="text-base font-bold text-[#0F172A]">
               Family Care Spaces Rollup
             </h2>
-            <p className="text-xs text-[#6B6860]">
+            <p className="text-xs text-[#475569]">
               Compare live air across every home, parent, or college city at once
             </p>
           </div>
@@ -402,7 +402,7 @@ export default function FamilyProfilesView({
               type="button"
               onClick={refreshAllFamilyCities}
               disabled={refreshingRollup}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-[#1C1B18] text-white hover:bg-[#1C1B18]/90 transition-colors cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold bg-[#059669] text-white hover:bg-[#047857] shadow-sm transition-colors cursor-pointer disabled:opacity-50"
             >
               <RefreshCw
                 className={`h-3.5 w-3.5 ${refreshingRollup ? 'animate-spin' : ''}`}
@@ -412,7 +412,7 @@ export default function FamilyProfilesView({
             <button
               type="button"
               onClick={handleShareRollup}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-[#EDF6F0] text-[#2E6F40] border border-[#CBE6D3] hover:bg-[#E1F1E6] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] hover:bg-[#D1FAE5] transition-colors cursor-pointer"
             >
               <Share2 className="h-3.5 w-3.5" />
               Share All Family Places on WhatsApp
@@ -427,40 +427,40 @@ export default function FamilyProfilesView({
             return (
               <div
                 key={space.id}
-                className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] p-4 space-y-2"
+                className="rounded-xl bg-[#FAF9F6]/90 border border-[#E7E5E0] hover:border-[#D6D3CD] hover:shadow-sm transition-all p-4 space-y-2"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-bold text-[#1C1B18] truncate">
+                  <span className="text-sm font-bold text-[#0F172A] truncate">
                     {space.label}
                   </span>
-                  <span className="text-[11px] text-[#6B6860] shrink-0">
+                  <span className="text-[11px] text-[#475569] shrink-0">
                     Limit ≤ {space.safeAqiLimit}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-[#6B6860]">
-                  <MapPin className="h-3 w-3 shrink-0" />
+                <div className="flex items-center gap-1 text-xs text-[#475569]">
+                  <MapPin className="h-3 w-3 shrink-0 text-[#059669]" />
                   <span>{space.city}</span>
                 </div>
                 {live ? (
                   <div className="pt-1 flex items-center justify-between gap-2">
-                    <span className="text-lg font-bold text-[#1C1B18] tabular-nums">
+                    <span className="text-lg font-bold text-[#0F172A] tabular-nums">
                       {live.aqi}{' '}
-                      <span className="text-xs font-normal text-[#6B6860]">
+                      <span className="text-xs font-normal text-[#475569]">
                         ({live.category})
                       </span>
                     </span>
                     <span
                       className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
                         isOk
-                          ? 'bg-[#EDF6F0] text-[#2E6F40] border-[#CBE6D3]'
-                          : 'bg-[#FEF2F2] text-[#B91C1C] border-[#F7CACA]'
+                          ? 'bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]'
+                          : 'bg-[#FFF1F2] text-[#E11D48] border-[#FECDD3]'
                       }`}
                     >
                       {isOk ? 'Okay to Move Out' : 'Caution / Stay Indoors'}
                     </span>
                   </div>
                 ) : (
-                  <div className="pt-1 text-xs text-[#6B6860]">
+                  <div className="pt-1 text-xs text-[#475569]">
                     Tap &ldquo;Refresh All Family Cities&rdquo; for live verdict
                   </div>
                 )}
@@ -474,8 +474,8 @@ export default function FamilyProfilesView({
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-[#1C1B18]" />
-            <h2 className="text-base font-bold text-[#1C1B18]">
+            <Users className="h-4 w-4 text-[#059669]" />
+            <h2 className="text-base font-bold text-[#0F172A]">
               Saved Care Spaces ({careSpaces.length})
             </h2>
           </div>
@@ -483,7 +483,7 @@ export default function FamilyProfilesView({
             <button
               type="button"
               onClick={openNewForm}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-[#1C1B18] text-white hover:bg-[#1C1B18]/90 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold bg-[#059669] text-white hover:bg-[#047857] shadow-sm transition-colors cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Care Space
@@ -495,23 +495,23 @@ export default function FamilyProfilesView({
         {formOpen && (
           <form
             onSubmit={handleSaveForm}
-            className="rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] p-6 space-y-5"
+            className="rounded-2xl bg-white/80 backdrop-blur-md border border-[#E7E5E0] p-6 space-y-5"
           >
             <div className="flex items-center justify-between border-b border-[#E7E5E0] pb-3">
-              <h3 className="text-sm font-bold text-[#1C1B18]">
+              <h3 className="text-sm font-bold text-[#0F172A]">
                 {editingId ? 'Edit Care Space' : 'Add New Care Space'}
               </h3>
               <button
                 type="button"
                 onClick={() => setFormOpen(false)}
-                className="h-7 w-7 rounded-lg text-[#6B6860] hover:text-[#1C1B18] hover:bg-[#F4F2ED] flex items-center justify-center cursor-pointer"
+                className="h-7 w-7 rounded-lg text-[#475569] hover:text-[#0F172A] hover:bg-[#F4F2ED] flex items-center justify-center cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#6B6860]">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#475569]">
                 Care Space Label
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2">
@@ -522,8 +522,8 @@ export default function FamilyProfilesView({
                     onClick={() => setLabel(q)}
                     className={`px-3 py-1 rounded-full text-xs font-medium border cursor-pointer ${
                       label === q
-                        ? 'bg-[#1C1B18] text-white border-[#1C1B18]'
-                        : 'bg-[#F4F2ED] text-[#1C1B18] border-[#E7E5E0]'
+                        ? 'bg-[#0F172A] text-white border-[#0F172A]'
+                        : 'bg-[#F4F2ED] text-[#0F172A] border-[#E7E5E0]'
                     }`}
                   >
                     {q}
@@ -535,12 +535,12 @@ export default function FamilyProfilesView({
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="e.g., Parents' Place, Son's Hostel"
-                className="w-full rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-sm text-[#1C1B18] focus:outline-none focus:border-[#1C1B18]"
+                className="w-full rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-[#0F172A]"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#6B6860]">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#475569]">
                 City &amp; Neighbourhood
               </label>
               <CitySelector value={city} onChange={setCity} variant="full" />
@@ -549,16 +549,16 @@ export default function FamilyProfilesView({
                 value={town}
                 onChange={(e) => setTown(e.target.value)}
                 placeholder="Optional area (e.g., Gomti Nagar, Banjara Hills)"
-                className="w-full rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-sm text-[#1C1B18] focus:outline-none focus:border-[#1C1B18]"
+                className="w-full rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-[#0F172A]"
               />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold uppercase tracking-wider text-[#6B6860]">
+                <label className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
                   Safe-to-Step-Out AQI Ceiling
                 </label>
-                <span className="text-xs font-bold text-[#1C1B18] tabular-nums">
+                <span className="text-xs font-bold text-[#0F172A] tabular-nums">
                   ≤ {safeAqiLimit} AQI
                 </span>
               </div>
@@ -570,8 +570,8 @@ export default function FamilyProfilesView({
                     onClick={() => setSafeAqiLimit(preset.value)}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer ${
                       safeAqiLimit === preset.value
-                        ? 'bg-[#1C1B18] text-white border-[#1C1B18]'
-                        : 'bg-[#F4F2ED] text-[#1C1B18] border-[#E7E5E0]'
+                        ? 'bg-[#0F172A] text-white border-[#0F172A]'
+                        : 'bg-[#F4F2ED] text-[#0F172A] border-[#E7E5E0]'
                     }`}
                   >
                     {preset.label}
@@ -585,7 +585,7 @@ export default function FamilyProfilesView({
                 step={10}
                 value={safeAqiLimit}
                 onChange={(e) => setSafeAqiLimit(Number(e.target.value))}
-                className="w-full accent-[#1C1B18]"
+                className="w-full accent-[#0F172A]"
               />
             </div>
 
@@ -632,20 +632,20 @@ export default function FamilyProfilesView({
             </div>
 
             {formError && (
-              <p className="text-xs text-[#B91C1C] font-medium">{formError}</p>
+              <p className="text-xs text-[#E11D48] font-medium">{formError}</p>
             )}
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E7E5E0]">
               <button
                 type="button"
                 onClick={() => setFormOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-medium bg-[#F4F2ED] text-[#1C1B18] cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-medium bg-[#F4F2ED] text-[#0F172A] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl text-xs font-medium bg-[#1C1B18] text-white cursor-pointer"
+                className="px-5 py-2 rounded-xl text-xs font-medium bg-[#0F172A] text-white cursor-pointer"
               >
                 {editingId ? 'Save Changes' : 'Create Care Space'}
               </button>
@@ -665,23 +665,23 @@ export default function FamilyProfilesView({
             return (
               <div
                 key={space.id}
-                className={`rounded-2xl bg-[#FFFFFF] border p-5 space-y-4 ${
-                  isActive ? 'border-[#1C1B18]' : 'border-[#E7E5E0]'
+                className={`rounded-2xl bg-white/80 backdrop-blur-md border p-5 space-y-4 ${
+                  isActive ? 'border-[#0F172A]' : 'border-[#E7E5E0]'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold text-[#1C1B18]">
+                      <h3 className="text-base font-bold text-[#0F172A]">
                         {space.label}
                       </h3>
                       {isActive && (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#1C1B18] text-white">
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#0F172A] text-white">
                           Active
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-[#6B6860] mt-0.5">
+                    <p className="text-xs text-[#475569] mt-0.5">
                       {space.city}
                       {space.profile.location.town
                         ? ` · ${space.profile.location.town}`
@@ -689,8 +689,8 @@ export default function FamilyProfilesView({
                     </p>
                   </div>
 
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#F4F2ED] text-[#1C1B18] border border-[#E7E5E0] shrink-0">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#2E6F40]" />
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#F4F2ED] text-[#0F172A] border border-[#E7E5E0] shrink-0">
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#059669]" />
                     ≤ {space.safeAqiLimit} AQI
                   </span>
                 </div>
@@ -700,7 +700,7 @@ export default function FamilyProfilesView({
                     {tags.map((tag) => (
                       <span
                         key={tag}
-                        className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#FAF9F6] text-[#6B6860] border border-[#E7E5E0]"
+                        className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#FAF9F6] text-[#475569] border border-[#E7E5E0]"
                       >
                         {tag}
                       </span>
@@ -712,14 +712,14 @@ export default function FamilyProfilesView({
                   <button
                     type="button"
                     onClick={() => onSelectSpace(space.id, true)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-[#1C1B18] text-white hover:bg-[#1C1B18]/90 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-[#0F172A] text-white hover:bg-[#0F172A]/90 transition-colors cursor-pointer"
                   >
                     {isActive ? 'View Dashboard' : 'Switch to Dashboard'}
                   </button>
                   <button
                     type="button"
                     onClick={() => openEditForm(space)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-[#F4F2ED] text-[#1C1B18] border border-[#E7E5E0] hover:border-[#1C1B18]/40 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-[#F4F2ED] text-[#0F172A] border border-[#E7E5E0] hover:border-[#0F172A]/40 transition-colors cursor-pointer"
                   >
                     <Edit3 className="h-3 w-3" />
                     Edit
@@ -727,7 +727,7 @@ export default function FamilyProfilesView({
                   <button
                     type="button"
                     onClick={() => handleShareSingle(space)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-[#EDF6F0] text-[#2E6F40] border border-[#CBE6D3] hover:bg-[#E1F1E6] transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] hover:bg-[#E1F1E6] transition-colors cursor-pointer"
                   >
                     <Share2 className="h-3 w-3" />
                     Share Brief
@@ -737,7 +737,7 @@ export default function FamilyProfilesView({
                       type="button"
                       onClick={() => onDeleteSpace(space.id)}
                       aria-label={`Delete ${space.label}`}
-                      className="ml-auto p-1.5 rounded-lg text-[#6B6860] hover:text-[#B91C1C] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
+                      className="ml-auto p-1.5 rounded-lg text-[#475569] hover:text-[#E11D48] hover:bg-[#FFF1F2] transition-colors cursor-pointer"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

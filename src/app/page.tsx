@@ -397,7 +397,17 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#FAF9F6] text-[#1C1B18]">
+    <main className="relative min-h-screen bg-[#FAF9F6] text-[#0F172A]">
+      {/* Ambient Atmospheric Daylight Orbs */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+      >
+        <div className="animate-drift-slow absolute -top-24 -left-20 h-96 w-96 rounded-full bg-[#10B981]/10 blur-3xl" />
+        <div className="animate-drift-reverse absolute top-1/3 -right-24 h-[26rem] w-[26rem] rounded-full bg-[#F59E0B]/10 blur-3xl" />
+        <div className="animate-drift-slow absolute -bottom-24 left-1/3 h-96 w-96 rounded-full bg-[#0EA5E9]/10 blur-3xl" />
+      </div>
+
       <MenuDrawer
         open={drawerOpen}
         activeView={activeView}
@@ -440,13 +450,13 @@ export default function HomePage() {
                   type="button"
                   onClick={() => setDrawerOpen(true)}
                   aria-label="Open navigation menu"
-                  className="h-9 w-9 rounded-xl bg-[#FFFFFF] border border-[#E7E5E0] hover:border-[#1C1B18]/40 flex items-center justify-center text-[#1C1B18] transition-colors cursor-pointer"
+                  className="h-9 w-9 rounded-xl bg-white/80 backdrop-blur-md border border-[#E7E5E0] hover:border-[#D6D3CD] shadow-sm flex items-center justify-center text-[#0F172A] transition-all cursor-pointer"
                 >
                   <Menu className="h-4 w-4" />
                 </button>
                 <div className="flex items-center gap-2">
-                  <Wind className="h-4 w-4 text-[#6B6860]" />
-                  <h1 className="text-lg font-bold tracking-tight text-[#1C1B18]">
+                  <Wind className="h-4 w-4 text-[#059669]" />
+                  <h1 className="text-lg font-bold tracking-tight text-[#0F172A]">
                     {VIEW_TITLES[activeView]}
                   </h1>
                 </div>
@@ -455,7 +465,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setActiveView('dashboard')}
-                className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#FFFFFF] text-[#1C1B18] border border-[#E7E5E0] hover:border-[#1C1B18]/40 transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/80 backdrop-blur-md text-[#0F172A] border border-[#E7E5E0] hover:border-[#D6D3CD] shadow-sm transition-all cursor-pointer"
               >
                 Back to Dashboard
               </button>

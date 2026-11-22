@@ -66,10 +66,10 @@ export default function CitySelector({
                 key={metro}
                 type="button"
                 onClick={() => handleSelect(metro)}
-                className={`px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium transition-colors border cursor-pointer ${
+                className={`px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium transition-all border cursor-pointer ${
                   active
-                    ? 'bg-[#1C1B18] text-white border-[#1C1B18]'
-                    : 'bg-[#F4F2ED] text-[#1C1B18] border-[#E7E5E0] hover:border-[#1C1B18]/40'
+                    ? 'bg-[#059669] text-white border-[#059669] shadow-sm'
+                    : 'bg-white/80 text-[#0F172A] border-[#E7E5E0] hover:border-[#D6D3CD]'
                 }`}
               >
                 {metro}
@@ -86,18 +86,18 @@ export default function CitySelector({
           onClick={() => setOpen((prev) => !prev)}
           className={
             variant === 'compact'
-              ? 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#FFFFFF] text-[#1C1B18] border border-[#E7E5E0] hover:border-[#1C1B18]/40 transition-colors cursor-pointer'
-              : 'w-full flex items-center justify-between rounded-xl bg-[#FFFFFF] border border-[#E7E5E0] hover:border-[#1C1B18]/40 px-3.5 py-2.5 text-sm text-[#1C1B18] transition-colors cursor-pointer'
+              ? 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-white/80 backdrop-blur-md text-[#0F172A] border border-[#E7E5E0] hover:border-[#D6D3CD] shadow-sm transition-all cursor-pointer'
+              : 'w-full flex items-center justify-between rounded-xl bg-white/90 border border-[#E7E5E0] hover:border-[#D6D3CD] px-3.5 py-2.5 text-sm text-[#0F172A] transition-all cursor-pointer'
           }
         >
           <span className="inline-flex items-center gap-1.5 truncate">
-            <MapPin className="h-3.5 w-3.5 text-[#6B6860] shrink-0" />
+            <MapPin className="h-3.5 w-3.5 text-[#059669] shrink-0" />
             <span className="font-medium truncate">
               {value || 'Search 60+ Indian cities or type your own...'}
             </span>
           </span>
           <ChevronDown
-            className={`h-3.5 w-3.5 text-[#6B6860] shrink-0 transition-transform ${
+            className={`h-3.5 w-3.5 text-[#475569] shrink-0 transition-transform ${
               open ? 'rotate-180' : ''
             }`}
           />
@@ -105,21 +105,21 @@ export default function CitySelector({
 
         {open && (
           <div
-            className={`absolute z-30 mt-1.5 rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] shadow-lg overflow-hidden ${
+            className={`absolute z-30 mt-1.5 rounded-2xl bg-white/95 backdrop-blur-xl border border-[#E7E5E0] shadow-lg overflow-hidden ${
               variant === 'compact' ? 'w-72 sm:w-80 left-0' : 'w-full left-0'
             }`}
           >
             {/* Search Input */}
             <div className="p-2.5 border-b border-[#E7E5E0]">
-              <div className="flex items-center gap-2 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3 py-2">
-                <Search className="h-3.5 w-3.5 text-[#6B6860] shrink-0" />
+              <div className="flex items-center gap-2 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] focus-within:border-[#059669] px-3 py-2">
+                <Search className="h-3.5 w-3.5 text-[#475569] shrink-0" />
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search city (e.g. Kochi, Indore, Noida)..."
                   autoFocus
-                  className="w-full bg-transparent text-xs sm:text-sm text-[#1C1B18] placeholder:text-[#6B6860] focus:outline-none"
+                  className="w-full bg-transparent text-xs sm:text-sm text-[#0F172A] placeholder:text-[#475569] focus:outline-none"
                 />
               </div>
             </div>
@@ -136,13 +136,13 @@ export default function CitySelector({
                       onClick={() => handleSelect(c)}
                       className={`w-full text-left px-3 py-2 rounded-xl text-xs sm:text-sm transition-colors cursor-pointer flex items-center justify-between ${
                         active
-                          ? 'bg-[#1C1B18] text-white font-medium'
-                          : 'text-[#1C1B18] hover:bg-[#F4F2ED]'
+                          ? 'bg-[#ECFDF5] text-[#059669] font-semibold'
+                          : 'text-[#0F172A] hover:bg-[#FAF9F6]'
                       }`}
                     >
                       <span>{c}</span>
                       {active && (
-                        <span className="text-[10px] uppercase tracking-wider opacity-80">
+                        <span className="text-[10px] uppercase tracking-wider">
                           Selected
                         </span>
                       )}
@@ -150,7 +150,7 @@ export default function CitySelector({
                   );
                 })
               ) : (
-                <div className="px-3 py-3 text-xs text-[#6B6860]">
+                <div className="px-3 py-3 text-xs text-[#475569]">
                   No preset match for &ldquo;{query}&rdquo;. Add it below.
                 </div>
               )}
@@ -158,7 +158,7 @@ export default function CitySelector({
 
             {/* Manual City Input */}
             <div className="p-2.5 border-t border-[#E7E5E0] bg-[#FAF9F6]">
-              <div className="text-[11px] font-medium text-[#6B6860] mb-1.5">
+              <div className="text-[11px] font-medium text-[#475569] mb-1.5">
                 Can&apos;t find your city? Type it manually
               </div>
               <div className="flex items-center gap-1.5">
@@ -173,12 +173,12 @@ export default function CitySelector({
                     }
                   }}
                   placeholder={query || 'Enter any Indian city or town'}
-                  className="flex-1 rounded-xl bg-[#FFFFFF] border border-[#E7E5E0] px-3 py-1.5 text-xs text-[#1C1B18] placeholder:text-[#6B6860] focus:outline-none focus:border-[#1C1B18]"
+                  className="flex-1 rounded-xl bg-white/90 border border-[#E7E5E0] px-3 py-1.5 text-xs text-[#0F172A] placeholder:text-[#475569] focus:outline-none focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/20"
                 />
                 <button
                   type="button"
                   onClick={() => handleManualSubmit()}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#1C1B18] text-white text-xs font-medium hover:bg-[#1C1B18]/90 transition-colors cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#059669] hover:bg-[#047857] text-white text-xs font-medium transition-colors cursor-pointer shrink-0"
                 >
                   <Plus className="h-3 w-3" />
                   Use

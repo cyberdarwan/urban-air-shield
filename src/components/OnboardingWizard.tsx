@@ -115,10 +115,10 @@ function MultiSelectSection({
   return (
     <div className="space-y-2.5">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#6B6860]">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
           {title}
         </h2>
-        <span className="text-[11px] font-medium text-[#6B6860]">
+        <span className="text-[11px] font-medium text-[#475569]">
           Select all that apply
         </span>
       </div>
@@ -131,10 +131,10 @@ function MultiSelectSection({
               key={item}
               type="button"
               onClick={() => onChange(toggleMulti(values, item, exclusiveItem))}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium transition-colors border cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium transition-all border cursor-pointer ${
                 active
-                  ? 'bg-[#1C1B18] text-white border-[#1C1B18]'
-                  : 'bg-[#F4F2ED] text-[#1C1B18] border-[#E7E5E0] hover:border-[#1C1B18]/40'
+                  ? 'bg-[#059669] text-white border-[#059669] shadow-sm'
+                  : 'bg-[#FAF9F6] text-[#0F172A] border-[#E7E5E0] hover:border-[#D6D3CD]'
               }`}
             >
               {active && <Check className="h-3.5 w-3.5 shrink-0" />}
@@ -146,7 +146,7 @@ function MultiSelectSection({
         {customValues.map((item) => (
           <span
             key={item}
-            className="inline-flex items-center gap-1.5 pl-3.5 pr-2 py-2 rounded-full text-xs sm:text-sm font-medium bg-[#1C1B18] text-white border border-[#1C1B18]"
+            className="inline-flex items-center gap-1.5 pl-3.5 pr-2 py-2 rounded-full text-xs sm:text-sm font-medium bg-[#059669] text-white border border-[#059669] shadow-sm"
           >
             <span>{item}</span>
             <button
@@ -164,7 +164,7 @@ function MultiSelectSection({
           <button
             type="button"
             onClick={() => setAddingCustom(true)}
-            className="inline-flex items-center gap-1 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium bg-[#FFFFFF] text-[#6B6860] border border-dashed border-[#E7E5E0] hover:border-[#1C1B18]/50 hover:text-[#1C1B18] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium bg-white/80 text-[#475569] border border-dashed border-[#E7E5E0] hover:border-[#059669] hover:text-[#059669] transition-colors cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>Other / Custom</span>
@@ -189,12 +189,12 @@ function MultiSelectSection({
             }}
             placeholder={placeholder}
             autoFocus
-            className="flex-1 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-xs sm:text-sm text-[#1C1B18] placeholder:text-[#6B6860] focus:outline-none focus:border-[#1C1B18]"
+            className="flex-1 rounded-xl bg-white/90 border border-[#E7E5E0] px-3.5 py-2 text-xs sm:text-sm text-[#0F172A] placeholder:text-[#475569] focus:outline-none focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/20"
           />
           <button
             type="button"
             onClick={commitCustom}
-            className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-[#1C1B18] text-white text-xs font-medium hover:bg-[#1C1B18]/90 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-[#059669] hover:bg-[#047857] text-white text-xs font-medium transition-colors cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             Add
@@ -205,7 +205,7 @@ function MultiSelectSection({
               setAddingCustom(false);
               setDraft('');
             }}
-            className="px-2.5 py-2 rounded-xl text-xs text-[#6B6860] hover:text-[#1C1B18] cursor-pointer"
+            className="px-2.5 py-2 rounded-xl text-xs text-[#475569] hover:text-[#0F172A] cursor-pointer"
           >
             Cancel
           </button>
@@ -319,32 +319,42 @@ export default function OnboardingWizard({
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-[#1C1B18] flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-xl rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden bg-[#FAF9F6] text-[#0F172A] flex items-center justify-center px-4 py-10">
+      {/* Ambient Atmospheric Orbs */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+      >
+        <div className="animate-drift-slow absolute -top-24 -left-20 h-96 w-96 rounded-full bg-[#10B981]/12 blur-3xl" />
+        <div className="animate-drift-reverse absolute top-1/3 -right-24 h-[26rem] w-[26rem] rounded-full bg-[#F59E0B]/10 blur-3xl" />
+        <div className="animate-drift-slow absolute -bottom-24 left-1/3 h-96 w-96 rounded-full bg-[#0EA5E9]/10 blur-3xl" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white/80 backdrop-blur-md border border-[#E7E5E0] shadow-sm overflow-hidden">
         {/* Header */}
         <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-[#E7E5E0] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-[#F4F2ED] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18]">
+            <div className="h-9 w-9 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center text-[#059669]">
               <Wind className="h-4 w-4" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-[#1C1B18]">
+              <h1 className="text-base font-bold tracking-tight text-[#0F172A]">
                 SmogSense Setup
               </h1>
-              <p className="text-xs text-[#6B6860]">
+              <p className="text-xs text-[#475569]">
                 Tailored to your real daily routine · Saved locally
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-[#6B6860] bg-[#F4F2ED] border border-[#E7E5E0] px-2.5 py-1 rounded-full">
+            <span className="text-xs font-semibold text-[#059669] bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-1 rounded-full">
               Step {step} of 3
             </span>
             {onCancel && (
               <button
                 type="button"
                 onClick={onCancel}
-                className="text-xs text-[#6B6860] hover:text-[#1C1B18] px-2 py-1 rounded-lg hover:bg-[#F4F2ED] transition-colors cursor-pointer"
+                className="text-xs text-[#475569] hover:text-[#0F172A] px-2 py-1 rounded-lg hover:bg-[#FAF9F6] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -352,10 +362,10 @@ export default function OnboardingWizard({
           </div>
         </div>
 
-        {/* Minimal Progress Bar */}
-        <div className="h-1 w-full bg-[#F4F2ED]">
+        {/* Emerald Progress Bar */}
+        <div className="h-1 w-full bg-[#E7E5E0]/60">
           <div
-            className="h-full bg-[#1C1B18] transition-all duration-300"
+            className="h-full bg-[#059669] transition-all duration-300"
             style={{ width: `${(step / 3) * 100}%` }}
           />
         </div>
@@ -365,12 +375,12 @@ export default function OnboardingWizard({
           {step === 1 && (
             <div className="space-y-6">
               <div className="space-y-2.5">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-[#6B6860]">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
                   Your City
                 </h2>
                 <CitySelector value={city} onChange={setCity} variant="full" />
                 <div className="pt-1">
-                  <label className="block text-xs font-medium text-[#6B6860] mb-1">
+                  <label className="block text-xs font-medium text-[#475569] mb-1">
                     Neighbourhood / Area (optional)
                   </label>
                   <input
@@ -378,13 +388,13 @@ export default function OnboardingWizard({
                     value={town}
                     onChange={(e) => setTown(e.target.value)}
                     placeholder="e.g., Indiranagar, Bandra, Jubilee Hills, Rohini"
-                    className="w-full rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2.5 text-sm text-[#1C1B18] placeholder:text-[#6B6860] focus:outline-none focus:border-[#1C1B18]"
+                    className="w-full rounded-xl bg-white/90 border border-[#E7E5E0] px-3.5 py-2.5 text-sm text-[#0F172A] placeholder:text-[#475569] focus:outline-none focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/20"
                   />
                 </div>
               </div>
 
               <div className="space-y-2.5">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-[#6B6860]">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
                   Who is this plan for?
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -415,15 +425,15 @@ export default function OnboardingWizard({
                         key={item.id}
                         type="button"
                         onClick={() => setMode(item.id)}
-                        className={`text-left rounded-xl p-3 border transition-colors cursor-pointer ${
+                        className={`text-left rounded-xl p-3 border transition-all cursor-pointer ${
                           active
-                            ? 'bg-[#1C1B18] text-white border-[#1C1B18]'
-                            : 'bg-[#F4F2ED] text-[#1C1B18] border-[#E7E5E0] hover:border-[#1C1B18]/40'
+                            ? 'bg-[#ECFDF5] text-[#059669] border-[#A7F3D0] shadow-sm'
+                            : 'bg-[#FAF9F6] text-[#0F172A] border-[#E7E5E0] hover:border-[#D6D3CD]'
                         }`}
                       >
                         <Icon
                           className={`h-4 w-4 mb-1.5 ${
-                            active ? 'text-white' : 'text-[#6B6860]'
+                            active ? 'text-[#059669]' : 'text-[#475569]'
                           }`}
                         />
                         <div className="font-semibold text-xs sm:text-sm">
@@ -431,7 +441,7 @@ export default function OnboardingWizard({
                         </div>
                         <div
                           className={`text-[11px] ${
-                            active ? 'text-white/75' : 'text-[#6B6860]'
+                            active ? 'text-[#059669]/80' : 'text-[#475569]'
                           }`}
                         >
                           {item.desc}
@@ -451,14 +461,14 @@ export default function OnboardingWizard({
               />
 
               {stepError && (
-                <p className="text-xs text-[#B91C1C] font-medium">{stepError}</p>
+                <p className="text-xs text-[#E11D48] font-medium">{stepError}</p>
               )}
 
               <div className="flex justify-end pt-1">
                 <button
                   type="button"
                   onClick={handleStep1Next}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1C1B18] hover:bg-[#1C1B18]/90 text-white font-medium text-sm transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#059669] hover:bg-[#047857] text-white font-semibold text-sm shadow-sm transition-colors cursor-pointer"
                 >
                   Next: Travel &amp; Household
                   <ArrowRight className="h-4 w-4" />
@@ -498,7 +508,7 @@ export default function OnboardingWizard({
 
               {mode === 'school' && (
                 <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] p-4 space-y-2.5">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-[#6B6860]">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
                     School / Campus Details
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -519,8 +529,8 @@ export default function OnboardingWizard({
                           }
                           className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
                             active
-                              ? 'bg-[#1C1B18] text-white border-[#1C1B18]'
-                              : 'bg-[#FFFFFF] text-[#1C1B18] border-[#E7E5E0]'
+                              ? 'bg-[#059669] text-white border-[#059669]'
+                              : 'bg-white text-[#0F172A] border-[#E7E5E0]'
                           }`}
                         >
                           {g}
@@ -533,7 +543,7 @@ export default function OnboardingWizard({
 
               {mode === 'industry' && (
                 <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] p-4 space-y-2.5">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-[#6B6860]">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
                     Workplace / Site Details
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -554,8 +564,8 @@ export default function OnboardingWizard({
                           }
                           className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
                             active
-                              ? 'bg-[#1C1B18] text-white border-[#1C1B18]'
-                              : 'bg-[#FFFFFF] text-[#1C1B18] border-[#E7E5E0]'
+                              ? 'bg-[#059669] text-white border-[#059669]'
+                              : 'bg-white text-[#0F172A] border-[#E7E5E0]'
                           }`}
                         >
                           {f}
@@ -567,7 +577,7 @@ export default function OnboardingWizard({
               )}
 
               {stepError && (
-                <p className="text-xs text-[#B91C1C] font-medium">{stepError}</p>
+                <p className="text-xs text-[#E11D48] font-medium">{stepError}</p>
               )}
 
               <div className="flex items-center justify-between pt-1">
@@ -577,7 +587,7 @@ export default function OnboardingWizard({
                     setStepError('');
                     setStep(1);
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#F4F2ED] hover:bg-[#E7E5E0] text-[#1C1B18] text-sm font-medium transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/80 border border-[#E7E5E0] hover:border-[#D6D3CD] text-[#0F172A] text-sm font-medium transition-colors cursor-pointer"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Back
@@ -585,7 +595,7 @@ export default function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2Next}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1C1B18] hover:bg-[#1C1B18]/90 text-white font-medium text-sm transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#059669] hover:bg-[#047857] text-white font-semibold text-sm shadow-sm transition-colors cursor-pointer"
                 >
                   Next: Home &amp; Protection
                   <ArrowRight className="h-4 w-4" />
@@ -615,7 +625,7 @@ export default function OnboardingWizard({
               />
 
               {stepError && (
-                <p className="text-xs text-[#B91C1C] font-medium">{stepError}</p>
+                <p className="text-xs text-[#E11D48] font-medium">{stepError}</p>
               )}
 
               <div className="flex items-center justify-between pt-1">
@@ -625,7 +635,7 @@ export default function OnboardingWizard({
                     setStepError('');
                     setStep(2);
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#F4F2ED] hover:bg-[#E7E5E0] text-[#1C1B18] text-sm font-medium transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/80 border border-[#E7E5E0] hover:border-[#D6D3CD] text-[#0F172A] text-sm font-medium transition-colors cursor-pointer"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Back
@@ -633,7 +643,7 @@ export default function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleFinish}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1C1B18] hover:bg-[#1C1B18]/90 text-white font-medium text-sm transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#059669] hover:bg-[#047857] text-white font-semibold text-sm shadow-sm transition-colors cursor-pointer"
                 >
                   <Check className="h-4 w-4" />
                   Build My Daily Plan

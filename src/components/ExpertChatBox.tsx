@@ -161,19 +161,19 @@ export default function ExpertChatBox({
         <section
           role="dialog"
           aria-label="Ask the Air Expert"
-          className="fixed bottom-36 right-6 z-40 w-[calc(100vw-3rem)] sm:w-[380px] max-h-[68vh] flex flex-col rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] shadow-xl overflow-hidden"
+          className="fixed bottom-36 right-6 z-40 w-[calc(100vw-3rem)] sm:w-[380px] max-h-[68vh] flex flex-col rounded-2xl bg-white/90 backdrop-blur-xl border border-[#E7E5E0] shadow-xl overflow-hidden"
         >
           {/* Header */}
-          <div className="px-4 py-3 border-b border-[#E7E5E0] flex items-center justify-between gap-2 bg-[#FFFFFF]">
+          <div className="px-4 py-3 border-b border-[#E7E5E0] flex items-center justify-between gap-2 bg-white/80">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="h-8 w-8 rounded-xl bg-[#F4F2ED] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18] shrink-0">
+              <div className="h-8 w-8 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center text-[#059669] shrink-0">
                 <MessageSquare className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-sm font-bold text-[#1C1B18] truncate">
+                <h2 className="text-sm font-bold text-[#0F172A] truncate">
                   Ask the Air Expert
                 </h2>
-                <p className="text-[11px] text-[#6B6860] truncate">
+                <p className="text-[11px] text-[#475569] truncate">
                   {contextSubtitle}
                 </p>
               </div>
@@ -186,7 +186,7 @@ export default function ExpertChatBox({
                   onClick={() => setMessages([])}
                   aria-label="Clear chat"
                   title="Clear chat"
-                  className="h-7 w-7 rounded-lg text-[#6B6860] hover:text-[#1C1B18] hover:bg-[#F4F2ED] flex items-center justify-center transition-colors cursor-pointer"
+                  className="h-7 w-7 rounded-lg text-[#475569] hover:text-[#0F172A] hover:bg-[#FAF9F6] flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                 </button>
@@ -196,7 +196,7 @@ export default function ExpertChatBox({
                 onClick={() => setOpen(false)}
                 aria-label="Close chat"
                 title="Close (Esc)"
-                className="h-7 w-7 rounded-lg text-[#6B6860] hover:text-[#1C1B18] hover:bg-[#F4F2ED] flex items-center justify-center transition-colors cursor-pointer"
+                className="h-7 w-7 rounded-lg text-[#475569] hover:text-[#0F172A] hover:bg-[#FAF9F6] flex items-center justify-center transition-colors cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -204,10 +204,10 @@ export default function ExpertChatBox({
           </div>
 
           {/* Scrollable Body */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#FAF9F6]/50">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#FAF9F6]/60">
             {messages.length === 0 ? (
               <div className="space-y-3">
-                <p className="text-xs text-[#6B6860] leading-relaxed">
+                <p className="text-xs text-[#475569] leading-relaxed">
                   Ask anything about your commute, opening windows, masks, or
                   family care in {profile.location.city}.
                 </p>
@@ -218,7 +218,7 @@ export default function ExpertChatBox({
                       type="button"
                       disabled={!aqiData || sending}
                       onClick={() => sendMessage(q)}
-                      className="text-left text-xs font-medium px-3.5 py-2.5 rounded-xl bg-[#F4F2ED] hover:bg-[#E7E5E0] text-[#1C1B18] border border-[#E7E5E0] transition-colors cursor-pointer disabled:opacity-50"
+                      className="text-left text-xs font-medium px-3.5 py-2.5 rounded-xl bg-white/90 hover:bg-[#ECFDF5] text-[#0F172A] hover:text-[#059669] border border-[#E7E5E0] hover:border-[#A7F3D0] shadow-sm transition-all cursor-pointer disabled:opacity-50"
                     >
                       {q}
                     </button>
@@ -235,29 +235,29 @@ export default function ExpertChatBox({
                     }`}
                   >
                     {m.role === 'assistant' && (
-                      <div className="h-6 w-6 rounded-lg bg-[#F4F2ED] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18] shrink-0 mt-0.5">
+                      <div className="h-6 w-6 rounded-lg bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center text-[#059669] shrink-0 mt-0.5">
                         <MessageSquare className="h-3 w-3" />
                       </div>
                     )}
                     <div
                       className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap ${
                         m.role === 'user'
-                          ? 'bg-[#F4F2ED] text-[#1C1B18] font-medium'
-                          : 'bg-[#FFFFFF] text-[#1C1B18] border border-[#E7E5E0]'
+                          ? 'bg-[#0F172A] text-[#FAF9F6] font-medium'
+                          : 'bg-white/95 text-[#0F172A] border border-[#E7E5E0] shadow-sm'
                       }`}
                     >
                       {m.content}
                     </div>
                     {m.role === 'user' && (
-                      <div className="h-6 w-6 rounded-lg bg-[#1C1B18] flex items-center justify-center text-white shrink-0 mt-0.5">
+                      <div className="h-6 w-6 rounded-lg bg-[#059669] flex items-center justify-center text-white shrink-0 mt-0.5">
                         <User className="h-3 w-3" />
                       </div>
                     )}
                   </div>
                 ))}
                 {sending && (
-                  <div className="flex items-center gap-2 text-xs text-[#6B6860] pl-8">
-                    <span className="h-2 w-2 rounded-full bg-[#1C1B18] animate-pulse" />
+                  <div className="flex items-center gap-2 text-xs text-[#475569] pl-8">
+                    <span className="h-2 w-2 rounded-full bg-[#059669] animate-pulse" />
                     Putting together practical steps...
                   </div>
                 )}
@@ -272,7 +272,7 @@ export default function ExpertChatBox({
               e.preventDefault();
               sendMessage(input);
             }}
-            className="p-3 border-t border-[#E7E5E0] bg-[#FFFFFF] flex items-center gap-2"
+            className="p-3 border-t border-[#E7E5E0] bg-white/90 flex items-center gap-2"
           >
             <input
               type="text"
@@ -284,13 +284,13 @@ export default function ExpertChatBox({
                   : 'Syncing local AQI...'
               }
               disabled={!aqiData || sending}
-              className="flex-1 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-xs sm:text-sm text-[#1C1B18] placeholder:text-[#6B6860] focus:outline-none focus:border-[#1C1B18] disabled:opacity-50"
+              className="flex-1 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-xs sm:text-sm text-[#0F172A] placeholder:text-[#475569] focus:outline-none focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/20 disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={!input.trim() || !aqiData || sending}
               aria-label="Send message"
-              className="h-9 w-9 rounded-xl bg-[#1C1B18] hover:bg-[#1C1B18]/90 text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 shrink-0"
+              className="h-9 w-9 rounded-xl bg-[#059669] hover:bg-[#047857] text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 shrink-0"
             >
               <Send className="h-3.5 w-3.5" />
             </button>
@@ -307,7 +307,7 @@ export default function ExpertChatBox({
           disabled={!aqiData}
           aria-label="Share on WhatsApp"
           title="Share on WhatsApp"
-          className="h-[52px] w-[52px] rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#059669] shadow-md hover:scale-105 transition-transform flex items-center justify-center cursor-pointer disabled:opacity-50"
+          className="h-[52px] w-[52px] rounded-full bg-[#ECFDF5]/95 backdrop-blur-md border border-[#A7F3D0] text-[#059669] shadow-md hover:scale-105 transition-transform flex items-center justify-center cursor-pointer disabled:opacity-50"
         >
           <Share2 className="h-5 w-5" />
         </button>
@@ -321,7 +321,7 @@ export default function ExpertChatBox({
           }
           title={open ? 'Close Air Expert' : 'Ask Air Expert'}
           aria-expanded={open}
-          className="h-[52px] w-[52px] rounded-full bg-[#1C1B18] text-[#FAF9F6] border border-[#1C1B18] shadow-md hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+          className="h-[52px] w-[52px] rounded-full bg-[#0F172A] text-[#FAF9F6] border border-[#059669]/50 shadow-md hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
         >
           {open ? <X className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
         </button>
