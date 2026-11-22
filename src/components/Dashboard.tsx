@@ -9,6 +9,7 @@ import {
   Flame,
   HeartPulse,
   Home,
+  Menu,
   RefreshCw,
   ShieldAlert,
   SlidersHorizontal,
@@ -37,6 +38,7 @@ interface DashboardProps {
   onRefresh: () => void;
   onEditProfile: () => void;
   onCityChange: (city: string) => void;
+  onOpenMenu: () => void;
 }
 
 function getCpcbBadgeStyle(category?: AqiCategory): {
@@ -74,6 +76,7 @@ export default function Dashboard({
   onRefresh,
   onEditProfile,
   onCityChange,
+  onOpenMenu,
 }: DashboardProps) {
   const timeline = aqiData ? buildHourlyTimeline(aqiData.aqi) : [];
   const badgeStyle = getCpcbBadgeStyle(aqiData?.category);
@@ -93,10 +96,17 @@ export default function Dashboard({
       {/* Minimal Editorial Top Bar */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-[#E7E5E0]">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-[#FFFFFF] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18]">
-              <Wind className="h-4 w-4" />
-            </div>
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            aria-label="Open navigation menu"
+            className="h-9 w-9 rounded-xl bg-[#FFFFFF] border border-[#E7E5E0] hover:border-[#1C1B18]/40 flex items-center justify-center text-[#1C1B18] transition-colors cursor-pointer"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <Wind className="h-4 w-4 text-[#6B6860]" />
             <h1 className="text-xl font-bold tracking-tight text-[#1C1B18]">
               SmogSense
             </h1>

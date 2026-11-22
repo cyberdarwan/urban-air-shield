@@ -119,7 +119,7 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
         <section
           role="dialog"
           aria-label="Ask the Air Expert"
-          className="fixed bottom-20 right-5 z-50 w-[calc(100vw-2.5rem)] sm:w-[380px] max-h-[72vh] flex flex-col rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] shadow-xl overflow-hidden"
+          className="fixed bottom-20 right-5 z-40 w-[calc(100vw-2.5rem)] sm:w-[380px] max-h-[72vh] flex flex-col rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] shadow-xl overflow-hidden"
         >
           {/* Header */}
           <div className="px-4 py-3 border-b border-[#E7E5E0] flex items-center justify-between gap-2 bg-[#FFFFFF]">
@@ -262,7 +262,7 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
         onClick={() => setOpen((prev) => !prev)}
         aria-label={open ? 'Close Air Expert chat' : 'Open Ask Air Expert chat'}
         aria-expanded={open}
-        className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 px-3.5 sm:px-4 py-3 rounded-full bg-[#1C1B18] text-[#FAF9F6] border border-[#1C1B18] shadow-md hover:bg-[#1C1B18]/90 transition-all cursor-pointer"
+        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 px-3.5 sm:px-4 py-3 rounded-full bg-[#1C1B18] text-[#FAF9F6] border border-[#1C1B18] shadow-md hover:bg-[#1C1B18]/90 transition-all cursor-pointer"
       >
         {open ? (
           <>
