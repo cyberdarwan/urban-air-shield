@@ -29,6 +29,7 @@ interface DashboardProps {
   profile: UserProfile;
   aqiData: AqiResponse | null;
   recommendations: RecommendationPayload | null;
+  recGeneratedBy?: string | null;
   loadingAqi: boolean;
   loadingRecs: boolean;
   simulateSevere: boolean;
@@ -65,6 +66,7 @@ export default function Dashboard({
   profile,
   aqiData,
   recommendations,
+  recGeneratedBy,
   loadingAqi,
   loadingRecs,
   simulateSevere,
@@ -344,9 +346,24 @@ export default function Dashboard({
                   Realistic harm-reduction steps tailored to your exact routine today
                 </p>
               </div>
-              <span className="text-[11px] font-semibold text-[#2E6F40] bg-[#EDF6F0] border border-[#CBE6D3] px-3 py-1 rounded-full self-start sm:self-auto">
-                Immediate Actions
-              </span>
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                {recGeneratedBy && (
+                  <span
+                    className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${
+                      recGeneratedBy === 'fallback'
+                        ? 'bg-[#FEF9EC] text-[#9A6700] border-[#F5E4B8]'
+                        : 'bg-[#F4F2ED] text-[#6B6860] border-[#E7E5E0]'
+                    }`}
+                  >
+                    {recGeneratedBy === 'fallback'
+                      ? 'Offline Fallback'
+                      : `AI Live · ${recGeneratedBy}`}
+                  </span>
+                )}
+                <span className="text-[11px] font-semibold text-[#2E6F40] bg-[#EDF6F0] border border-[#CBE6D3] px-3 py-1 rounded-full">
+                  Immediate Actions
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

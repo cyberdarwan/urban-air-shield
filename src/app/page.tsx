@@ -34,6 +34,7 @@ export default function HomePage() {
   const [aqiData, setAqiData] = useState<AqiResponse | null>(null);
   const [recommendations, setRecommendations] =
     useState<RecommendationPayload | null>(null);
+  const [recGeneratedBy, setRecGeneratedBy] = useState<string | null>(null);
   const [loadingAqi, setLoadingAqi] = useState(false);
   const [loadingRecs, setLoadingRecs] = useState(false);
 
@@ -54,7 +55,11 @@ export default function HomePage() {
   }, []);
 
   const fetchTelemetryAndRecommendations = useCallback(
-    async (activeProfile: UserProfile, severe: boolean) => {
+    async (
+      activeProfile: UserProfile,
+      severe: boolean,
+      signal?: AbortSignal
+    ) => {
       setLoadingAqi(true);
       setLoadingRecs(true);
       try {
@@ -67,8 +72,10 @@ export default function HomePage() {
 
         const aqiRes = await fetch(`/api/aqi?${params.toString()}`, {
           cache: 'no-store',
+          signal,
         });
         const aqiJson = (await aqiRes.json()) as AqiResponse;
+        if (signal?.aborted) return;
         setAqiData(aqiJson);
         setLoadingAqi(false);
 
@@ -76,20 +83,26 @@ export default function HomePage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
+          signal,
           body: JSON.stringify({
             profile: activeProfile,
             aqiData: aqiJson,
           }),
         });
         const recJson = await recRes.json();
+        if (signal?.aborted) return;
         if (recJson?.recommendations) {
           setRecommendations(recJson.recommendations as RecommendationPayload);
+          setRecGeneratedBy(recJson.generatedBy ?? null);
         }
       } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
         console.error('Failed to sync air quality data:', err);
       } finally {
-        setLoadingAqi(false);
-        setLoadingRecs(false);
+        if (!signal?.aborted) {
+          setLoadingAqi(false);
+          setLoadingRecs(false);
+        }
       }
     },
     []
@@ -97,7 +110,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (profile && !editingProfile) {
-      fetchTelemetryAndRecommendations(profile, simulateSevere);
+      const controller = new AbortController();
+      fetchTelemetryAndRecommendations(profile, simulateSevere, controller.signal);
+      return () => controller.abort();
     }
   }, [profile, editingProfile, simulateSevere, fetchTelemetryAndRecommendations]);
 
@@ -105,6 +120,7 @@ export default function HomePage() {
     setProfile(nextProfile);
     setEditingProfile(false);
     setRecommendations(null);
+    setRecGeneratedBy(null);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(nextProfile));
     } catch {
@@ -124,6 +140,7 @@ export default function HomePage() {
     };
     setProfile(updated);
     setRecommendations(null);
+    setRecGeneratedBy(null);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     } catch {
@@ -148,6 +165,7 @@ export default function HomePage() {
           profile={profile}
           aqiData={aqiData}
           recommendations={recommendations}
+          recGeneratedBy={recGeneratedBy}
           loadingAqi={loadingAqi}
           loadingRecs={loadingRecs}
           simulateSevere={simulateSevere}

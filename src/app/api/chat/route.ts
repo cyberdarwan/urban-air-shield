@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isGrapCity } from '@/lib/aqi-utils';
-import { GEMINI_MODEL, getGeminiClient, withTimeout } from '@/lib/gemini';
+import { generateWithGeminiWaterfall, getGeminiClient } from '@/lib/gemini';
 import {
   checkRateLimit,
   isPromptInjectionAttempt,
@@ -99,6 +99,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         reply: buildChatFallback(profile, aqiData),
         generatedBy: 'fallback',
+        debug: {
+          generatedBy: 'fallback',
+          attemptedModels: [],
+          fallbackReason: 'GEMINI_API_KEY missing on server',
+        },
       });
     }
 
@@ -142,26 +147,36 @@ LIVE TELEMETRY (${aqiData.stationName} · ${aqiData.source}):
       .map((m) => `${m.role === 'user' ? 'User' : 'Doctor'}: ${m.content}`)
       .join('\n\n');
 
-    const response = await withTimeout(
-      ai.models.generateContent({
-        model: GEMINI_MODEL,
+    const result = await generateWithGeminiWaterfall(
+      ai,
+      {
         contents: `${conversationHistory}\n\nRespond warmly, concisely, and practically to: "${latestUserMessage}"`,
-        config: {
-          systemInstruction,
-          temperature: 0.4,
-        },
-      }),
-      8000,
-      'Gemini chat'
+        systemInstruction,
+        temperature: 0.4,
+      },
+      8000
     );
 
-    const reply =
-      response.text ||
-      'I could not pull up a response right now—please try asking again in a moment.';
+    if (!result.text) {
+      return NextResponse.json({
+        reply: buildChatFallback(profile, aqiData),
+        generatedBy: 'fallback',
+        debug: {
+          generatedBy: 'fallback',
+          attemptedModels: result.attemptedModels,
+          fallbackReason: result.fallbackReason,
+        },
+      });
+    }
 
     return NextResponse.json({
-      reply,
-      generatedBy: GEMINI_MODEL,
+      reply: result.text,
+      generatedBy: result.generatedBy,
+      debug: {
+        generatedBy: result.generatedBy,
+        attemptedModels: result.attemptedModels,
+        fallbackReason: result.fallbackReason,
+      },
     });
   } catch (error) {
     console.error('Chat error:', error);
@@ -169,6 +184,11 @@ LIVE TELEMETRY (${aqiData.stationName} · ${aqiData.source}):
       return NextResponse.json({
         reply: buildChatFallback(profile, aqiData),
         generatedBy: 'fallback',
+        debug: {
+          generatedBy: 'fallback',
+          attemptedModels: [],
+          fallbackReason: error instanceof Error ? error.message : 'Chat error',
+        },
       });
     }
     return NextResponse.json(

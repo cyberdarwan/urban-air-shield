@@ -48,7 +48,9 @@ async function testRecommend(label, profile, aqiData) {
     body: JSON.stringify({ profile, aqiData }),
   });
   const json = await res.json();
-  console.log(`HTTP Status: ${res.status} | generatedBy: ${json.generatedBy}`);
+  console.log(
+    `HTTP Status: ${res.status} | generatedBy: ${json.generatedBy} | attemptedModels: [${(json.debug?.attemptedModels || []).join(', ')}]`
+  );
   console.log(`Debug fallbackReason: ${json.debug?.fallbackReason ?? 'none'}`);
   console.log(`Advisory Title: ${json.recommendations?.officialWarnings?.advisoryTitle}`);
   console.log(`Hero Verdict: ${json.recommendations?.heroVerdict}`);

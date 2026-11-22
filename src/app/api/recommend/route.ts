@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Type } from '@google/genai';
 import { isGrapCity } from '@/lib/aqi-utils';
 import {
-  GEMINI_MODEL,
+  generateWithGeminiWaterfall,
   getGeminiClient,
-  withTimeout,
 } from '@/lib/gemini';
 import {
   checkRateLimit,
@@ -365,9 +364,30 @@ function buildFallbackRecommendations(
   };
 }
 
+interface CachedRecommendation {
+  recommendations: RecommendationPayload;
+  generatedBy: string;
+  attemptedModels: string[];
+  fallbackReason: string | null;
+  expiresAt: number;
+}
+
+const REC_CACHE_TTL_MS = 10 * 60 * 1000;
+const REC_CACHE_MAX_ENTRIES = 100;
+const recCache = new Map<string, CachedRecommendation>();
+const inFlightRecs = new Map<string, Promise<CachedRecommendation>>();
+
+function buildCacheKey(profile: UserProfile, aqiData: AqiResponse): string {
+  const city = (profile.location?.city || '').trim().toLowerCase();
+  const normalizedProfile = { ...profile, updatedAt: undefined };
+  return `${city}|${aqiData.category}|${JSON.stringify(normalizedProfile)}`;
+}
+
 export async function POST(request: NextRequest) {
   let profile: UserProfile | null = null;
   let aqiData: AqiResponse | null = null;
+  const noStoreHeaders = { 'Cache-Control': 'no-store' };
+
   try {
     const rate = checkRateLimit(request, 'recommend', 20, 60_000);
     if (!rate.allowed) {
@@ -396,19 +416,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
     }
 
-    const ai = getGeminiClient();
-    if (!ai) {
-      return NextResponse.json({
-        recommendations: buildFallbackRecommendations(profile, aqiData),
-        generatedBy: 'fallback',
-      });
+    const cacheKey = buildCacheKey(profile, aqiData);
+    const now = Date.now();
+    const cached = recCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return NextResponse.json(
+        {
+          recommendations: cached.recommendations,
+          generatedBy: cached.generatedBy,
+          debug: {
+            generatedBy: cached.generatedBy,
+            attemptedModels: cached.attemptedModels,
+            fallbackReason: cached.fallbackReason,
+            cached: true,
+          },
+        },
+        { headers: noStoreHeaders }
+      );
+    }
+    if (cached) {
+      recCache.delete(cacheKey);
     }
 
-    const city = profile.location?.city || 'the city';
-    const grapRegion = isGrapCity(city);
-    const custom = collectAllCustomEntries(profile);
+    const ai = getGeminiClient();
+    if (!ai) {
+      return NextResponse.json(
+        {
+          recommendations: buildFallbackRecommendations(profile, aqiData),
+          generatedBy: 'fallback',
+          debug: {
+            generatedBy: 'fallback',
+            attemptedModels: [],
+            fallbackReason: 'GEMINI_API_KEY missing on server',
+            cached: false,
+          },
+        },
+        { headers: noStoreHeaders }
+      );
+    }
 
-    const prompt = `You are a deeply knowledgeable, street-smart Indian environmental doctor talking warmly and clearly to a neighbor or family member.
+    let pending = inFlightRecs.get(cacheKey);
+    if (!pending) {
+      const activeProfile = profile;
+      const activeAqi = aqiData;
+      const city = activeProfile.location?.city || 'the city';
+      const grapRegion = isGrapCity(city);
+      const custom = collectAllCustomEntries(activeProfile);
+
+      const prompt = `You are a deeply knowledgeable, street-smart Indian environmental doctor talking warmly and clearly to a neighbor or family member.
 
 CORE MENTAL MODEL — HARM REDUCTION, NOT AVOIDANCE:
 - In Indian cities, 150–300 AQI is an everyday reality. People MUST still commute, go to work/college, drop kids at school, and run errands.
@@ -416,23 +471,23 @@ CORE MENTAL MODEL — HARM REDUCTION, NOT AVOIDANCE:
 - Do all the atmospheric and medical reasoning internally (cold morning/evening air trapping smoke near the ground, traffic-corridor PM2.5 spikes, indoor cooking/brooming dust), and translate it into CLEAR, EVERYDAY HUMAN LANGUAGE with ZERO academic or medical jargon (never say "alveoli", "boundary-layer inversion", "particulate deposition", "cardiovascular morbidity", etc.).
 
 CROSS-REFERENCE EVERY SELECTION IN THIS USER'S PROFILE:
-- City: ${city} (Locality: ${profile.location?.town || 'Not specified'})
-- Support Mode: ${profile.mode}
-- When They Step Out: ${(profile.stepOutWindows || []).join(', ') || 'Not specified'}
-- How They Travel: ${(profile.travelModes || []).join(', ') || 'Not specified'}
-- Who Lives at Home: ${(profile.householdMembers || []).join(', ') || 'Just Me'}
-- Health Sensitivities: ${(profile.healthSensitivities || []).join(', ') || 'None'}
-- Home Surroundings: ${(profile.homeSurroundings || []).join(', ') || 'Not specified'}
-- Protection Already Owned: ${(profile.existingProtection || []).join(', ') || 'None (Zero-Cost Tips Only)'}
-${profile.school ? `- School Details: ${JSON.stringify(profile.school)}` : ''}
-${profile.industry ? `- Workplace Details: ${JSON.stringify(profile.industry)}` : ''}
+- City: ${city} (Locality: ${activeProfile.location?.town || 'Not specified'})
+- Support Mode: ${activeProfile.mode}
+- When They Step Out: ${(activeProfile.stepOutWindows || []).join(', ') || 'Not specified'}
+- How They Travel: ${(activeProfile.travelModes || []).join(', ') || 'Not specified'}
+- Who Lives at Home: ${(activeProfile.householdMembers || []).join(', ') || 'Just Me'}
+- Health Sensitivities: ${(activeProfile.healthSensitivities || []).join(', ') || 'None'}
+- Home Surroundings: ${(activeProfile.homeSurroundings || []).join(', ') || 'Not specified'}
+- Protection Already Owned: ${(activeProfile.existingProtection || []).join(', ') || 'None (Zero-Cost Tips Only)'}
+${activeProfile.school ? `- School Details: ${JSON.stringify(activeProfile.school)}` : ''}
+${activeProfile.industry ? `- Workplace Details: ${JSON.stringify(activeProfile.industry)}` : ''}
 
 CUSTOM USER-TYPED ENTRIES (CRITICAL — MUST BE DIRECTLY ADDRESSED):
 ${custom.all.length > 0 ? `The user manually typed these specific realities: ${custom.all.map((c) => `"${c}"`).join(', ')}. You MUST explicitly address each one in plain, practical everyday terms inside TodaysPracticalMoves (and heroVerdict if relevant). Never ignore custom entries.` : 'None.'}
 
-LIVE AIR QUALITY (${aqiData.stationName}):
-- AQI: ${aqiData.aqi} (${aqiData.category})
-- PM2.5: ${aqiData.pollutants.pm25} µg/m³, PM10: ${aqiData.pollutants.pm10} µg/m³, NO2: ${aqiData.pollutants.no2} µg/m³, O3: ${aqiData.pollutants.o3} µg/m³, CO: ${aqiData.pollutants.co ?? 1.1} mg/m³
+LIVE AIR QUALITY (${activeAqi.stationName}):
+- AQI: ${activeAqi.aqi} (${activeAqi.category})
+- PM2.5: ${activeAqi.pollutants.pm25} µg/m³, PM10: ${activeAqi.pollutants.pm10} µg/m³, NO2: ${activeAqi.pollutants.no2} µg/m³, O3: ${activeAqi.pollutants.o3} µg/m³, CO: ${activeAqi.pollutants.co ?? 1.1} mg/m³
 
 REGIONAL ADVISORY RULE:
 - isGrapRegion MUST be ${grapRegion ? 'true' : 'false'}.
@@ -441,7 +496,7 @@ REGIONAL ADVISORY RULE:
 
 OUTPUT STRUCTURE:
 1. heroVerdict: One crisp, reassuring, plain-English sentence summarizing what today's air means for THIS user's specific routine.
-2. officialWarnings: Regional advisory (${grapRegion ? 'CAQM GRAP Protocol' : 'CPCB Citizen Guidance'}) tailored to AQI ${aqiData.aqi}.
+2. officialWarnings: Regional advisory (${grapRegion ? 'CAQM GRAP Protocol' : 'CPCB Citizen Guidance'}) tailored to AQI ${activeAqi.aqi}.
 3. clockWindows: Plain-English clock windows ("bestWindowToStepOut" like "12:00 PM – 4:00 PM" and "peakSmokeHours" like "6:00 AM – 9:30 AM & 7:00 PM – 11:00 PM") with simple, neighborly reasons.
 4. todaysPracticalMoves: Immediate, realistic actions for TODAY's routine:
    - onTheMove: Exactly how to handle their selected travel modes, step-out times, and any custom schedule/commute entries.
@@ -450,51 +505,78 @@ OUTPUT STRUCTURE:
    - quickChecklist: 4 short, punchy action items for today.
 5. futureLifestyleUpgrades: A separate, low-pressure section for gradual, optional longer-term habits (3 upgrades) clearly framed as future-achievable rather than today's demands.`;
 
-    const noStoreHeaders = { 'Cache-Control': 'no-store' };
-    let text: string | undefined;
-
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const response = await withTimeout(
-          ai.models.generateContent({
-            model: GEMINI_MODEL,
+      pending = (async () => {
+        const result = await generateWithGeminiWaterfall(
+          ai,
+          {
             contents: prompt,
-            config: {
-              responseMimeType: 'application/json',
-              responseSchema: recommendationSchema,
-              temperature: 0.35,
-            },
-          }),
-          8000,
-          'Gemini recommendations'
+            responseMimeType: 'application/json',
+            responseSchema: recommendationSchema,
+            temperature: 0.35,
+          },
+          8000
         );
-        text = response.text;
-        if (text) break;
-      } catch (attemptErr) {
-        if (attempt === 2) throw attemptErr;
-        await new Promise((r) => setTimeout(r, 600));
-      }
+
+        if (result.text) {
+          try {
+            const parsed = JSON.parse(result.text) as RecommendationPayload;
+            const entry: CachedRecommendation = {
+              recommendations: parsed,
+              generatedBy: result.generatedBy,
+              attemptedModels: result.attemptedModels,
+              fallbackReason: result.fallbackReason,
+              expiresAt: Date.now() + REC_CACHE_TTL_MS,
+            };
+            if (recCache.size >= REC_CACHE_MAX_ENTRIES) {
+              const oldestKey = recCache.keys().next().value;
+              if (oldestKey) recCache.delete(oldestKey);
+            }
+            recCache.set(cacheKey, entry);
+            return entry;
+          } catch (parseErr) {
+            const parseMsg =
+              parseErr instanceof Error ? parseErr.message : 'JSON parse error';
+            return {
+              recommendations: buildFallbackRecommendations(activeProfile, activeAqi),
+              generatedBy: 'fallback',
+              attemptedModels: result.attemptedModels,
+              fallbackReason: `${result.generatedBy} JSON parse failed: ${parseMsg}`,
+              expiresAt: Date.now() + 60_000,
+            };
+          }
+        }
+
+        return {
+          recommendations: buildFallbackRecommendations(activeProfile, activeAqi),
+          generatedBy: 'fallback',
+          attemptedModels: result.attemptedModels,
+          fallbackReason: result.fallbackReason || 'All Gemini models failed',
+          expiresAt: Date.now() + 60_000,
+        };
+      })().finally(() => {
+        inFlightRecs.delete(cacheKey);
+      });
+
+      inFlightRecs.set(cacheKey, pending);
     }
 
-    if (!text) {
-      throw new Error('Empty response from Gemini');
-    }
-
-    const parsed = JSON.parse(text) as RecommendationPayload;
+    const resolved = await pending;
     return NextResponse.json(
       {
-        recommendations: parsed,
-        generatedBy: GEMINI_MODEL,
+        recommendations: resolved.recommendations,
+        generatedBy: resolved.generatedBy,
         debug: {
-          generatedBy: GEMINI_MODEL,
-          fallbackReason: null,
+          generatedBy: resolved.generatedBy,
+          attemptedModels: resolved.attemptedModels,
+          fallbackReason: resolved.fallbackReason,
+          cached: false,
         },
       },
       { headers: noStoreHeaders }
     );
   } catch (error) {
     const reason =
-      error instanceof Error ? error.message : 'Unknown Gemini failure';
+      error instanceof Error ? error.message : 'Unknown recommendation error';
     console.error('Recommendation error:', reason);
     if (profile && aqiData) {
       return NextResponse.json(
@@ -503,10 +585,12 @@ OUTPUT STRUCTURE:
           generatedBy: 'fallback',
           debug: {
             generatedBy: 'fallback',
+            attemptedModels: [],
             fallbackReason: reason,
+            cached: false,
           },
         },
-        { headers: { 'Cache-Control': 'no-store' } }
+        { headers: noStoreHeaders }
       );
     }
     return NextResponse.json(
