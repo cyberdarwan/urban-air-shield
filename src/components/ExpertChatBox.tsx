@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo, useRef, useState } from 'react';
-import { MessageSquare, Send, User } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { MessageSquare, RotateCcw, Send, User, X } from 'lucide-react';
 import type { AqiResponse, ChatMessage, UserProfile } from '@/types/air-quality';
 
 interface ExpertChatBoxProps {
@@ -10,10 +10,22 @@ interface ExpertChatBoxProps {
 }
 
 export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) {
+  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open]);
 
   const starterQuestions = useMemo(() => {
     const loc = profile.location.town || profile.location.city || 'my area';
@@ -96,108 +108,178 @@ export default function ExpertChatBox({ profile, aqiData }: ExpertChatBoxProps) 
     }
   };
 
+  const contextSubtitle = `${profile.location.city}${
+    aqiData ? ` · ${aqiData.aqi} AQI` : ''
+  }`;
+
   return (
-    <section className="rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] p-5 sm:p-6 space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#E7E5E0] pb-4">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-[#F4F2ED] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18]">
-            <MessageSquare className="h-4 w-4" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-[#1C1B18]">
-              Ask the Air Expert
-            </h2>
-            <p className="text-xs text-[#6B6860]">
-              Practical, jargon-free answers grounded in your routine &amp; live AQI
-            </p>
-          </div>
-        </div>
-        <span className="text-[11px] font-medium text-[#6B6860] bg-[#F4F2ED] border border-[#E7E5E0] px-2.5 py-1 rounded-full self-start sm:self-auto">
-          Routine Synced
-        </span>
-      </div>
-
-      {/* Starter Chips */}
-      <div className="flex flex-wrap gap-2">
-        {starterQuestions.map((q) => (
-          <button
-            key={q}
-            type="button"
-            disabled={!aqiData || sending}
-            onClick={() => sendMessage(q)}
-            className="text-left text-xs font-medium px-3.5 py-2 rounded-full bg-[#F4F2ED] hover:bg-[#E7E5E0] text-[#1C1B18] border border-[#E7E5E0] transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
-
-      {/* Conversation Feed */}
-      {messages.length > 0 && (
-        <div className="max-h-96 overflow-y-auto space-y-3 pr-1 pt-2">
-          {messages.map((m, idx) => (
-            <div
-              key={idx}
-              className={`flex items-start gap-2.5 ${
-                m.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
-              {m.role === 'assistant' && (
-                <div className="h-7 w-7 rounded-lg bg-[#F4F2ED] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18] shrink-0 mt-0.5">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                </div>
-              )}
-              <div
-                className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                  m.role === 'user'
-                    ? 'bg-[#F4F2ED] text-[#1C1B18] font-medium'
-                    : 'bg-[#FFFFFF] text-[#1C1B18] border border-[#E7E5E0]'
-                }`}
-              >
-                {m.content}
+    <>
+      {/* Floating Popover Chat Window */}
+      {open && (
+        <section
+          role="dialog"
+          aria-label="Ask the Air Expert"
+          className="fixed bottom-20 right-5 z-50 w-[calc(100vw-2.5rem)] sm:w-[380px] max-h-[72vh] flex flex-col rounded-2xl bg-[#FFFFFF] border border-[#E7E5E0] shadow-xl overflow-hidden"
+        >
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-[#E7E5E0] flex items-center justify-between gap-2 bg-[#FFFFFF]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-8 w-8 rounded-xl bg-[#F4F2ED] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18] shrink-0">
+                <MessageSquare className="h-4 w-4" />
               </div>
-              {m.role === 'user' && (
-                <div className="h-7 w-7 rounded-lg bg-[#1C1B18] flex items-center justify-center text-white shrink-0 mt-0.5">
-                  <User className="h-3.5 w-3.5" />
-                </div>
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-[#1C1B18] truncate">
+                  Ask the Air Expert
+                </h2>
+                <p className="text-[11px] text-[#6B6860] truncate">
+                  {contextSubtitle}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              {messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setMessages([])}
+                  aria-label="Clear chat"
+                  title="Clear chat"
+                  className="h-7 w-7 rounded-lg text-[#6B6860] hover:text-[#1C1B18] hover:bg-[#F4F2ED] flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
               )}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close chat"
+                title="Close (Esc)"
+                className="h-7 w-7 rounded-lg text-[#6B6860] hover:text-[#1C1B18] hover:bg-[#F4F2ED] flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-          ))}
-          {sending && (
-            <div className="flex items-center gap-2 text-xs text-[#6B6860] pl-9">
-              <span className="h-2 w-2 rounded-full bg-[#1C1B18] animate-pulse" />
-              Checking your city&apos;s air &amp; putting together practical steps...
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
+          </div>
+
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#FAF9F6]/50">
+            {messages.length === 0 ? (
+              <div className="space-y-3">
+                <p className="text-xs text-[#6B6860] leading-relaxed">
+                  Ask anything about your commute, opening windows, masks, or
+                  family care in {profile.location.city}.
+                </p>
+                <div className="flex flex-col gap-2">
+                  {starterQuestions.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      disabled={!aqiData || sending}
+                      onClick={() => sendMessage(q)}
+                      className="text-left text-xs font-medium px-3.5 py-2.5 rounded-xl bg-[#F4F2ED] hover:bg-[#E7E5E0] text-[#1C1B18] border border-[#E7E5E0] transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                {messages.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-start gap-2 ${
+                      m.role === 'user' ? 'justify-end' : 'justify-start'
+                    }`}
+                  >
+                    {m.role === 'assistant' && (
+                      <div className="h-6 w-6 rounded-lg bg-[#F4F2ED] border border-[#E7E5E0] flex items-center justify-center text-[#1C1B18] shrink-0 mt-0.5">
+                        <MessageSquare className="h-3 w-3" />
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap ${
+                        m.role === 'user'
+                          ? 'bg-[#F4F2ED] text-[#1C1B18] font-medium'
+                          : 'bg-[#FFFFFF] text-[#1C1B18] border border-[#E7E5E0]'
+                      }`}
+                    >
+                      {m.content}
+                    </div>
+                    {m.role === 'user' && (
+                      <div className="h-6 w-6 rounded-lg bg-[#1C1B18] flex items-center justify-center text-white shrink-0 mt-0.5">
+                        <User className="h-3 w-3" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {sending && (
+                  <div className="flex items-center gap-2 text-xs text-[#6B6860] pl-8">
+                    <span className="h-2 w-2 rounded-full bg-[#1C1B18] animate-pulse" />
+                    Putting together practical steps...
+                  </div>
+                )}
+                <div ref={bottomRef} />
+              </>
+            )}
+          </div>
+
+          {/* Sticky Input Bar */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage(input);
+            }}
+            className="p-3 border-t border-[#E7E5E0] bg-[#FFFFFF] flex items-center gap-2"
+          >
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={
+                aqiData
+                  ? 'Ask about commute, windows, masks...'
+                  : 'Syncing local AQI...'
+              }
+              disabled={!aqiData || sending}
+              className="flex-1 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-xs sm:text-sm text-[#1C1B18] placeholder:text-[#6B6860] focus:outline-none focus:border-[#1C1B18] disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || !aqiData || sending}
+              aria-label="Send message"
+              className="h-9 w-9 rounded-xl bg-[#1C1B18] hover:bg-[#1C1B18]/90 text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 shrink-0"
+            >
+              <Send className="h-3.5 w-3.5" />
+            </button>
+          </form>
+        </section>
       )}
 
-      {/* Input Bar */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          sendMessage(input);
-        }}
-        className="flex items-center gap-2 pt-1"
+      {/* Floating Bottom-Right Launcher Button */}
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label={open ? 'Close Air Expert chat' : 'Open Ask Air Expert chat'}
+        aria-expanded={open}
+        className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 px-3.5 sm:px-4 py-3 rounded-full bg-[#1C1B18] text-[#FAF9F6] border border-[#1C1B18] shadow-md hover:bg-[#1C1B18]/90 transition-all cursor-pointer"
       >
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about your commute, opening windows, kids' play, or masks..."
-          disabled={!aqiData || sending}
-          className="flex-1 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-4 py-2.5 text-sm text-[#1C1B18] placeholder:text-[#6B6860] focus:outline-none focus:border-[#1C1B18] disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={!input.trim() || !aqiData || sending}
-          aria-label="Send message"
-          className="h-10 w-10 rounded-xl bg-[#1C1B18] hover:bg-[#1C1B18]/90 text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40"
-        >
-          <Send className="h-4 w-4" />
-        </button>
-      </form>
-    </section>
+        {open ? (
+          <>
+            <X className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline text-xs font-semibold">
+              Close Chat
+            </span>
+          </>
+        ) : (
+          <>
+            <MessageSquare className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline text-xs font-semibold">
+              Ask Air Expert
+            </span>
+          </>
+        )}
+      </button>
+    </>
   );
 }

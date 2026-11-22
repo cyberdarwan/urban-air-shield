@@ -160,7 +160,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-[#FAF9F6] text-[#1C1B18]">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-24 space-y-6">
         <Dashboard
           profile={profile}
           aqiData={aqiData}
@@ -176,8 +176,8 @@ export default function HomePage() {
           onEditProfile={() => setEditingProfile(true)}
           onCityChange={handleCityChange}
         />
-        <ExpertChatBox profile={profile} aqiData={aqiData} />
       </div>
+      <ExpertChatBox profile={profile} aqiData={aqiData} />
     </main>
   );
 }
