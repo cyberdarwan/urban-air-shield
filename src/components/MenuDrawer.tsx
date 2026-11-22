@@ -5,6 +5,7 @@ import {
   Bell,
   BookOpen,
   Flame,
+  Info,
   LayoutDashboard,
   MapPin,
   RefreshCw,
@@ -27,6 +28,7 @@ interface MenuDrawerProps {
   onClose: () => void;
   onRefresh: () => void;
   onToggleSimulate: () => void;
+  onOpenLanding: () => void;
 }
 
 const NAV_ITEMS: Array<{
@@ -73,6 +75,7 @@ export default function MenuDrawer({
   onClose,
   onRefresh,
   onToggleSimulate,
+  onOpenLanding,
 }: MenuDrawerProps) {
   useEffect(() => {
     if (!open) return;
@@ -207,6 +210,20 @@ export default function MenuDrawer({
               </span>
               <span className="text-[11px] font-semibold">
                 {simulateSevere ? 'ON' : 'OFF'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenLanding();
+              }}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium bg-[#FAF9F6] text-[#1C1B18] border border-[#E7E5E0] hover:border-[#1C1B18]/40 transition-colors cursor-pointer"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5 text-[#6B6860]" />
+                About / Welcome Screen
               </span>
             </button>
           </div>

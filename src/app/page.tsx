@@ -8,6 +8,7 @@ import Dashboard from '@/components/Dashboard';
 import ExpertChatBox from '@/components/ExpertChatBox';
 import FamilyProfilesView from '@/components/FamilyProfilesView';
 import HelpGuideView from '@/components/HelpGuideView';
+import LandingPage from '@/components/LandingPage';
 import MenuDrawer, { type ActiveView } from '@/components/MenuDrawer';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import {
@@ -35,6 +36,8 @@ const VIEW_TITLES: Record<Exclude<ActiveView, 'dashboard'>, string> = {
 };
 
 export default function HomePage() {
+  const [hydrated, setHydrated] = useState(false);
+  const [showLanding, setShowLanding] = useState(false);
   const [store, setStore] = useState<CareSpacesStore | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [syncingCloud, setSyncingCloud] = useState(false);
@@ -55,10 +58,15 @@ export default function HomePage() {
     const loaded = loadCareSpaces();
     if (loaded) {
       setStore(loaded);
+      setShowLanding(false);
     }
 
     const supabase = createSupabaseBrowserClient();
-    if (!supabase) return;
+    if (!supabase) {
+      if (!loaded) setShowLanding(true);
+      setHydrated(true);
+      return;
+    }
 
     const runSync = async (signedInUser: User) => {
       setSyncingCloud(true);
@@ -70,6 +78,7 @@ export default function HomePage() {
         );
         if (synced) {
           setStore(synced);
+          setShowLanding(false);
         }
       } finally {
         setSyncingCloud(false);
@@ -79,7 +88,11 @@ export default function HomePage() {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
         setUser(data.user);
-        runSync(data.user);
+        setShowLanding(false);
+        runSync(data.user).finally(() => setHydrated(true));
+      } else {
+        if (!loaded) setShowLanding(true);
+        setHydrated(true);
       }
     });
 
@@ -89,6 +102,7 @@ export default function HomePage() {
       const nextUser = session?.user ?? null;
       setUser(nextUser);
       if (nextUser) {
+        setShowLanding(false);
         runSync(nextUser);
       }
     });
@@ -347,6 +361,31 @@ export default function HomePage() {
     setUser(null);
   };
 
+  if (!hydrated) {
+    return (
+      <main className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+        <div className="flex items-center gap-2 text-sm font-medium text-[#6B6860]">
+          <Wind className="h-4 w-4 animate-pulse" />
+          Loading SmogSense...
+        </div>
+      </main>
+    );
+  }
+
+  if (showLanding) {
+    return (
+      <LandingPage
+        hasExistingProfile={Boolean(store && activeCareSpace)}
+        onContinueAsGuest={() => {
+          setShowLanding(false);
+          if (!store || !activeCareSpace || !profile) {
+            setEditingProfile(true);
+          }
+        }}
+      />
+    );
+  }
+
   if (!store || !activeCareSpace || !profile || editingProfile) {
     return (
       <OnboardingWizard
@@ -373,6 +412,7 @@ export default function HomePage() {
           fetchTelemetryAndRecommendations(profile, simulateSevere)
         }
         onToggleSimulate={() => setSimulateSevere((prev) => !prev)}
+        onOpenLanding={() => setShowLanding(true)}
       />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-28 space-y-6">
