@@ -47,6 +47,24 @@ const O3_BREAKPOINTS: Breakpoint[] = [
   { cLow: 749, cHigh: 1000, iLow: 401, iHigh: 500 },
 ];
 
+const SO2_BREAKPOINTS: Breakpoint[] = [
+  { cLow: 0, cHigh: 40, iLow: 0, iHigh: 50 },
+  { cLow: 41, cHigh: 80, iLow: 51, iHigh: 100 },
+  { cLow: 81, cHigh: 380, iLow: 101, iHigh: 200 },
+  { cLow: 381, cHigh: 800, iLow: 201, iHigh: 300 },
+  { cLow: 801, cHigh: 1600, iLow: 301, iHigh: 400 },
+  { cLow: 1601, cHigh: 3000, iLow: 401, iHigh: 500 },
+];
+
+const CO_BREAKPOINTS: Breakpoint[] = [
+  { cLow: 0, cHigh: 1.0, iLow: 0, iHigh: 50 },
+  { cLow: 1.1, cHigh: 2.0, iLow: 51, iHigh: 100 },
+  { cLow: 2.1, cHigh: 10.0, iLow: 101, iHigh: 200 },
+  { cLow: 10.1, cHigh: 17.0, iLow: 201, iHigh: 300 },
+  { cLow: 17.1, cHigh: 34.0, iLow: 301, iHigh: 400 },
+  { cLow: 34.1, cHigh: 100.0, iLow: 401, iHigh: 500 },
+];
+
 function computeSubIndex(value: number, breakpoints: Breakpoint[]): number {
   const clamped = Math.max(0, value);
   for (const bp of breakpoints) {
@@ -59,6 +77,65 @@ function computeSubIndex(value: number, breakpoints: Breakpoint[]): number {
   return 500;
 }
 
+export function convertToCpcbUnit(
+  param: keyof PollutantLevels,
+  rawValue: number,
+  rawUnit?: string
+): { value: number; cpcbUnit: string } {
+  const unit = (rawUnit || '').toLowerCase().trim();
+
+  if (param === 'co') {
+    let mg = rawValue;
+    if (unit === 'µg/m³' || unit === 'ug/m3' || unit === 'µg/m3') {
+      mg = rawValue / 1000;
+    } else if (unit === 'ppb') {
+      mg = (rawValue * 1.145) / 1000;
+    } else if (unit === 'ppm') {
+      mg = rawValue * 1.145;
+    }
+    return { value: Math.round(mg * 100) / 100, cpcbUnit: 'mg/m³' };
+  }
+
+  let ugm3 = rawValue;
+  if (param === 'no2') {
+    if (unit === 'ppb') ugm3 = rawValue * 1.88;
+    else if (unit === 'ppm') ugm3 = rawValue * 1880;
+    else if (unit === 'mg/m³' || unit === 'mg/m3') ugm3 = rawValue * 1000;
+  } else if (param === 'so2') {
+    if (unit === 'ppb') ugm3 = rawValue * 2.62;
+    else if (unit === 'ppm') ugm3 = rawValue * 2620;
+    else if (unit === 'mg/m³' || unit === 'mg/m3') ugm3 = rawValue * 1000;
+  } else if (param === 'o3') {
+    if (unit === 'ppb') ugm3 = rawValue * 1.96;
+    else if (unit === 'ppm') ugm3 = rawValue * 1960;
+    else if (unit === 'mg/m³' || unit === 'mg/m3') ugm3 = rawValue * 1000;
+  } else if (param === 'pm25' || param === 'pm10') {
+    if (unit === 'mg/m³' || unit === 'mg/m3') ugm3 = rawValue * 1000;
+  }
+
+  return { value: Math.round(ugm3), cpcbUnit: 'µg/m³' };
+}
+
+export function computePollutantSubIndex(
+  param: keyof PollutantLevels,
+  value: number
+): number {
+  switch (param) {
+    case 'pm25':
+      return computeSubIndex(value, PM25_BREAKPOINTS);
+    case 'pm10':
+      return computeSubIndex(value, PM10_BREAKPOINTS);
+    case 'no2':
+      return computeSubIndex(value, NO2_BREAKPOINTS);
+    case 'o3':
+      return computeSubIndex(value, O3_BREAKPOINTS);
+    case 'so2':
+      return computeSubIndex(value, SO2_BREAKPOINTS);
+    case 'co':
+      return computeSubIndex(value, CO_BREAKPOINTS);
+  }
+}
+
 export function calculateAqi(pollutants: PollutantLevels): number {
   const subIndices = [
     computeSubIndex(pollutants.pm25, PM25_BREAKPOINTS),
@@ -66,6 +143,12 @@ export function calculateAqi(pollutants: PollutantLevels): number {
     computeSubIndex(pollutants.no2, NO2_BREAKPOINTS),
     computeSubIndex(pollutants.o3, O3_BREAKPOINTS),
   ];
+  if (pollutants.so2 !== undefined) {
+    subIndices.push(computeSubIndex(pollutants.so2, SO2_BREAKPOINTS));
+  }
+  if (pollutants.co !== undefined) {
+    subIndices.push(computeSubIndex(pollutants.co, CO_BREAKPOINTS));
+  }
   return Math.max(...subIndices);
 }
 

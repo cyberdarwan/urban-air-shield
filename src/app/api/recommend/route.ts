@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Type } from '@google/genai';
 import { isGrapCity } from '@/lib/aqi-utils';
-import { GEMINI_MODEL, getGeminiClient, withTimeout } from '@/lib/gemini';
+import {
+  GEMINI_MODEL,
+  getGeminiClient,
+  withTimeout,
+} from '@/lib/gemini';
 import {
   checkRateLimit,
   safeJsonBody,
@@ -446,40 +450,67 @@ OUTPUT STRUCTURE:
    - quickChecklist: 4 short, punchy action items for today.
 5. futureLifestyleUpgrades: A separate, low-pressure section for gradual, optional longer-term habits (3 upgrades) clearly framed as future-achievable rather than today's demands.`;
 
-    const response = await withTimeout(
-      ai.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: recommendationSchema,
-          temperature: 0.35,
-        },
-      }),
-      8000,
-      'Gemini recommendations'
-    );
+    const noStoreHeaders = { 'Cache-Control': 'no-store' };
+    let text: string | undefined;
 
-    const text = response.text;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await withTimeout(
+          ai.models.generateContent({
+            model: GEMINI_MODEL,
+            contents: prompt,
+            config: {
+              responseMimeType: 'application/json',
+              responseSchema: recommendationSchema,
+              temperature: 0.35,
+            },
+          }),
+          8000,
+          'Gemini recommendations'
+        );
+        text = response.text;
+        if (text) break;
+      } catch (attemptErr) {
+        if (attempt === 2) throw attemptErr;
+        await new Promise((r) => setTimeout(r, 600));
+      }
+    }
+
     if (!text) {
       throw new Error('Empty response from Gemini');
     }
 
     const parsed = JSON.parse(text) as RecommendationPayload;
-    return NextResponse.json({
-      recommendations: parsed,
-      generatedBy: GEMINI_MODEL,
-    });
+    return NextResponse.json(
+      {
+        recommendations: parsed,
+        generatedBy: GEMINI_MODEL,
+        debug: {
+          generatedBy: GEMINI_MODEL,
+          fallbackReason: null,
+        },
+      },
+      { headers: noStoreHeaders }
+    );
   } catch (error) {
-    console.error('Recommendation error:', error);
+    const reason =
+      error instanceof Error ? error.message : 'Unknown Gemini failure';
+    console.error('Recommendation error:', reason);
     if (profile && aqiData) {
-      return NextResponse.json({
-        recommendations: buildFallbackRecommendations(profile, aqiData),
-        generatedBy: 'fallback',
-      });
+      return NextResponse.json(
+        {
+          recommendations: buildFallbackRecommendations(profile, aqiData),
+          generatedBy: 'fallback',
+          debug: {
+            generatedBy: 'fallback',
+            fallbackReason: reason,
+          },
+        },
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
     }
     return NextResponse.json(
-      { error: 'Failed to generate recommendations' },
+      { error: 'Unable to process request' },
       { status: 500 }
     );
   }

@@ -65,7 +65,9 @@ export default function HomePage() {
         if (activeProfile.location.town)
           params.set('town', activeProfile.location.town);
 
-        const aqiRes = await fetch(`/api/aqi?${params.toString()}`);
+        const aqiRes = await fetch(`/api/aqi?${params.toString()}`, {
+          cache: 'no-store',
+        });
         const aqiJson = (await aqiRes.json()) as AqiResponse;
         setAqiData(aqiJson);
         setLoadingAqi(false);
@@ -73,6 +75,7 @@ export default function HomePage() {
         const recRes = await fetch('/api/recommend', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
           body: JSON.stringify({
             profile: activeProfile,
             aqiData: aqiJson,

@@ -180,6 +180,24 @@ export interface PollutantLevels {
   no2: number;
   o3: number;
   co?: number;
+  so2?: number;
+}
+
+export interface MappedPollutantDebug {
+  rawValue: number;
+  rawUnit: string;
+  convertedValue: number;
+  cpcbUnit: string;
+  subIndex: number;
+}
+
+export interface AqiDebugInfo {
+  source: 'OpenAQ Live' | 'CPCB Live' | 'Fallback';
+  upstreamStatus: number | null;
+  stationId: number | string | null;
+  stationName: string;
+  mappedPollutants: Record<string, MappedPollutantDebug>;
+  fallbackReason: string | null;
 }
 
 export interface RegionalAdvisory {
@@ -200,6 +218,7 @@ export interface AqiResponse {
   timestamp: string;
   advisories: RegionalAdvisory[];
   simulated: boolean;
+  debug?: AqiDebugInfo;
 }
 
 export interface RecommendationPayload {

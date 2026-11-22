@@ -163,9 +163,30 @@ export default function Dashboard({
               >
                 {aqiData?.category || 'Loading'} Air Quality
               </span>
-              {aqiData?.source && (
-                <span className="text-xs text-[#6B6860] px-2.5 py-1 rounded-full bg-[#F4F2ED] border border-[#E7E5E0]">
-                  {aqiData.source}
+              {aqiData?.debug && (
+                <span
+                  title={aqiData.debug.fallbackReason || undefined}
+                  className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${
+                    aqiData.debug.source === 'Fallback'
+                      ? 'bg-[#FEF9EC] text-[#9A6700] border-[#F5E4B8]'
+                      : 'bg-[#EDF6F0] text-[#2E6F40] border-[#CBE6D3]'
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      aqiData.debug.source === 'Fallback'
+                        ? 'bg-[#9A6700]'
+                        : 'bg-[#2E6F40]'
+                    }`}
+                  />
+                  {aqiData.debug.source === 'Fallback'
+                    ? 'Fallback Active'
+                    : aqiData.debug.source}
+                </span>
+              )}
+              {aqiData?.debug?.fallbackReason && (
+                <span className="text-[11px] text-[#6B6860]">
+                  ({aqiData.debug.fallbackReason})
                 </span>
               )}
             </div>
@@ -197,6 +218,11 @@ export default function Dashboard({
                 label: 'CO',
                 val: aqiData?.pollutants.co ?? 1.1,
                 unit: 'mg/m³',
+              },
+              {
+                label: 'SO₂',
+                val: aqiData?.pollutants.so2 ?? 12,
+                unit: 'µg/m³',
               },
             ].map((p) => (
               <div
