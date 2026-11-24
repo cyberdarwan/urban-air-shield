@@ -8,13 +8,13 @@
 
 ## Key Capabilities
 
-- **Harm-Reduction Gemini 3 Engine:** Sequential multi-model waterfall (`gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-3.6-flash` → `gemini-3.8-flash` → deterministic offline fallback) with a 10-minute server TTL cache and in-flight promise deduplication.
-- **Live OpenAQ v3 & Indian CPCB Pipeline:** Resolves 60+ mapped Indian cities (plus Open-Meteo geocoding for any manually typed Indian city/town) via OpenAQ v3 `coordinates=lat,lng&radius=25000`, normalizes units (`CO` → `mg/m³`; `NO₂`, `SO₂`, `O₃` → `µg/m³`), and computes official Indian CPCB linear sub-indices (`0–500`).
+- **Harm-Reduction Gemini 3 Engine:** Multi-model Gemini 3 fallback waterfall with an offline deterministic fallback, server-side response caching, and request deduplication.
+- **Live OpenAQ v3 & Indian CPCB Pipeline:** Resolves 60+ mapped Indian cities (plus Open-Meteo geocoding for any manually typed Indian city/town) via OpenAQ v3, normalizes units (`CO` → `mg/m³`; `NO₂`, `SO₂`, `O₃` → `µg/m³`), and computes official Indian CPCB linear sub-indices (`0–500`).
 - **Regional Advisory Accuracy:** Displays **CAQM GRAP Protocol** advisories for `New Delhi` / NCR and **CPCB Citizen Guidance** for all other Indian cities.
 - **Interactive Hourly Air Wave (`06:00` – `22:00`):** Smooth SVG spline curve with Rose → Amber → Emerald gradient fill, routine hour markers, and a slim inline inspector bar.
 - **Multi-Profile Family Care Spaces:** Manage multiple locations (*My Home*, *Parents' Place*, *Son's College*) with custom Safe AQI Limits (`≤ 100`, `≤ 150`, etc.), live **Okay to Move Out / Caution** verdicts, multi-city family rollups, and one-click **WhatsApp Morning Briefs**.
 - **Guest-First + Passwordless Supabase Cloud Sync:** Works immediately in `localStorage` with zero login; signing in via Google OAuth or Email Magic Link automatically migrates and syncs Care Spaces to Supabase Postgres with strict Row-Level Security.
-- **Zero-Gemini Hourly Web Push Alerts:** Cron endpoint (`/api/cron/check-air`) checks active Care Spaces once per unique city using OpenAQ v3 (zero Gemini calls) and sends browser Web Push notifications via `public/sw.js` only on `'safe' ↔ 'caution'` transitions.
+- **Zero-Gemini Hourly Web Push Alerts:** Background cron endpoint checks active Care Spaces once per unique city using OpenAQ v3 (zero Gemini calls) and sends browser Web Push notifications via `public/sw.js` only on `'safe' ↔ 'caution'` transitions.
 
 ---
 
@@ -85,11 +85,11 @@
 ## API Routes & Database Schema Summary
 
 ### API Endpoints
-- `GET /api/aqi?city=&town=&stationId=&simulate=`: Returns `AqiResponse` with live OpenAQ v3 / CPCB / baseline readings, Indian CPCB category, `advisories`, and `debug` metadata (`source`, `upstreamStatus`, `stationId`, `mappedPollutants`, `fallbackReason`).
-- `POST /api/recommend`: Accepts `{ profile, aqiData }`. Rate-limited (20 req/min/IP), 10-min TTL cached, and deduplicated. Returns structured `RecommendationPayload` (`heroVerdict`, `officialWarnings`, `clockWindows`, `todaysPracticalMoves`, `futureLifestyleUpgrades`) + `generatedBy` + `debug`.
-- `POST /api/chat`: Accepts `{ messages, profile, aqiData }`. Rate-limited (20 req/min/IP), enforces ≤ 1,000 chars/message, blocks prompt-injection attempts, and returns `{ reply, generatedBy, debug }`.
-- `POST / DELETE /api/push/subscribe`: Authenticated endpoint to save/remove browser `PushSubscription` in `push_subscriptions` or send a test alert (`action: "test"`).
-- `GET / POST /api/cron/check-air`: Protected by `Authorization: Bearer ${CRON_SECRET}`. Evaluates `care_spaces` with `notify_enabled = true` (zero Gemini calls) and dispatches Web Push alerts on `'safe' ↔ 'caution'` transitions.
+- `GET /api/aqi`: Returns `AqiResponse` with live OpenAQ v3 / CPCB / baseline readings, Indian CPCB category, regional `advisories`, and optional `debug` telemetry.
+- `POST /api/recommend`: Accepts `{ profile, aqiData }`. Rate-limited, input-validated, and server-cached; returns structured `RecommendationPayload` (`heroVerdict`, `officialWarnings`, `clockWindows`, `todaysPracticalMoves`, `futureLifestyleUpgrades`).
+- `POST /api/chat`: Accepts `{ messages, profile, aqiData }`. Rate-limited and input-validated; returns `{ reply, generatedBy }`.
+- `POST / DELETE /api/push/subscribe`: Authenticated endpoint to save/remove browser `PushSubscription` in `push_subscriptions` or send a test alert.
+- `GET / POST /api/cron/check-air`: Bearer-token-protected background job evaluating `care_spaces` with alerts enabled (zero Gemini calls) and dispatching Web Push alerts on status transitions.
 
 ### Supabase Tables (RLS Enforced: `auth.uid() = user_id`)
 - `public.care_spaces` ([`supabase/schema.sql`](supabase/schema.sql)): Stores `id`, `user_id`, `label`, `city`, `safe_aqi_limit`, `profile` (`jsonb`), `notify_enabled`, `last_alert_status`, `updated_at`.

@@ -44,7 +44,7 @@ This document provides a complete engineering walkthrough of **SmogSense** (`urb
 - `src/lib/aqi-utils.ts`: Indian CPCB linear interpolation breakpoints (`PM2.5`, `PM10`, `NO₂`, `O₃`, `SO₂`, `CO`), `convertToCpcbUnit`, `isGrapCity`, `getRegionalAdvisories`, and `buildHourlyTimeline`.
 - `src/lib/gemini.ts`: `GEMINI_MODEL_CHAIN` waterfall + `withTimeout` (8s per model).
 - `src/lib/care-spaces.ts`: `localStorage` persistence (`smogsense_care_spaces_v1`), automatic legacy `smogsense_profile_v1` migration, WhatsApp brief formatting, and Supabase two-way sync (`syncCareSpacesOnSignIn`, `upsertCareSpaceInCloud`, `deleteCareSpaceInCloud`).
-- `src/lib/security.ts`: In-memory per-IP rate limiter (20 req/min/IP), 64 KB `safeJsonBody`, input sanitizers, and `isPromptInjectionAttempt`.
+- `src/lib/security.ts`: In-memory per-IP rate limiter, bounded JSON body parsing, input sanitizers, and prompt-injection guardrails.
 - `public/sw.js`: Service Worker handling `push` events (`showNotification`) and `notificationclick` events.
 
 ---
@@ -60,9 +60,9 @@ This document provides a complete engineering walkthrough of **SmogSense** (`urb
 
 ### Flow B: Live AQI, Threshold Verdict, Hourly Wave & Gemini Waterfall
 1. Whenever `activeCareSpace.profile` or `simulateSevere` changes, `page.tsx` creates an `AbortController` and calls `GET /api/aqi?city=...` (`cache: 'no-store'`).
-2. `fetchLiveCityAqi` resolves city coordinates (`city-coords.ts` or Open-Meteo `countryCode=IN`), queries OpenAQ v3 `/v3/locations?iso=IN&coordinates=lat,lng&radius=25000`, tries up to 6 candidate stations, maps `sensorsId → { name, units }`, converts units to Indian CPCB standards, and computes the max sub-index.
+2. `fetchLiveCityAqi` resolves city coordinates (`city-coords.ts` or Open-Meteo `countryCode=IN`), queries OpenAQ v3 Indian reference stations, maps `sensorsId → { name, units }`, converts units to Indian CPCB standards, and computes the max sub-index.
 3. `Dashboard.tsx` compares `aqiData.aqi <= activeCareSpace.safeAqiLimit` to render **Okay to Move Out** (Emerald) or **Caution: Delay Outdoor Activity** (Rose), and passes `buildHourlyTimeline(aqiData.aqi)` to `HourlyAirWave.tsx`.
-4. `page.tsx` then calls `POST /api/recommend` with `{ profile, aqiData }`. The server checks its 10-minute TTL cache and in-flight deduplication `Map`; on cache miss, `generateWithGeminiWaterfall` tries `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-3.6-flash` → `gemini-3.8-flash` (8s timeout each) before falling back to `buildFallbackRecommendations`.
+4. `page.tsx` then calls `POST /api/recommend` with `{ profile, aqiData }`. The server checks its short-lived in-memory cache and in-flight deduplication `Map`; on cache miss, `generateWithGeminiWaterfall` tries the Gemini 3 model chain sequentially before falling back to `buildFallbackRecommendations`.
 
 ### Flow C: Multi-City Care Spaces, WhatsApp Briefs & Cloud Sync
 1. In `FamilyProfilesView.tsx`, users can add/edit Care Spaces with custom `safeAqiLimit` thresholds and click **Refresh All Family Cities** to fetch `/api/aqi` once per unique city.
@@ -71,8 +71,8 @@ This document provides a complete engineering walkthrough of **SmogSense** (`urb
 
 ### Flow D: Phase 4 Zero-Gemini Hourly Threshold Alert Pipeline
 1. In `AccountAuthView.tsx`, a signed-in user clicks **Enable Browser Push Alerts** → requests `Notification.requestPermission()`, registers `/sw.js`, subscribes via `pushManager.subscribe` with `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, and `POST`s the subscription to `/api/push/subscribe`.
-2. An external hourly cron hits `GET /api/cron/check-air` with `Authorization: Bearer ${CRON_SECRET}`.
-3. `/api/cron/check-air` uses `SUPABASE_SERVICE_ROLE_KEY` to fetch `care_spaces` where `notify_enabled = true`, deduplicates unique cities, fetches live AQI via `fetchLiveCityAqi` (**zero Gemini calls**), compares `aqi <= safe_aqi_limit` (`'safe'` vs `'caution'`), sends Web Push notifications only when `nextStatus !== last_alert_status`, deletes `410` / `404` expired subscriptions, and updates `last_alert_status`.
+2. An external hourly cron invokes `/api/cron/check-air` with a server-side Bearer secret.
+3. `/api/cron/check-air` uses the Supabase Service Role client to fetch `care_spaces` with alerts enabled, deduplicates unique cities, fetches live AQI via `fetchLiveCityAqi` (**zero Gemini calls**), compares `aqi <= safe_aqi_limit` (`'safe'` vs `'caution'`), sends Web Push notifications only on status transitions, cleans up expired subscriptions, and updates `last_alert_status`.
 
 ---
 
@@ -82,11 +82,11 @@ This document provides a complete engineering walkthrough of **SmogSense** (`urb
 
 | Route | Method(s) | Auth / Protection | Request | Response |
 | :--- | :--- | :--- | :--- | :--- |
-| `/api/aqi` | `GET` | Query param sanitization (`max 80 chars`) | `?city=&town=&state=&stationId=&simulate=` | `AqiResponse` (`aqi`, `category`, `pollutants`, `advisories`, `debug`) |
-| `/api/recommend` | `POST` | 20 req/min/IP rate limit, 64 KB JSON cap | `{ profile, aqiData }` | `{ recommendations, generatedBy, debug }` |
-| `/api/chat` | `POST` | 20 req/min/IP, ≤ 1,000 chars/msg, anti-injection | `{ messages, profile, aqiData }` | `{ reply, generatedBy, debug }` |
-| `/api/push/subscribe` | `POST`, `DELETE` | Authenticated Supabase user (`401` if guest) | `{ action?: 'subscribe'\|'test', subscription }` | `{ ok: true, sent? }` |
-| `/api/cron/check-air` | `GET`, `POST` | `Authorization: Bearer ${CRON_SECRET}` (`401` if invalid) | — | `{ ok, checkedCities, checkedSpaces, statusesUpdated, notificationsSent }` |
+| `/api/aqi` | `GET` | Query param sanitization | `?city=&town=&simulate=` | `AqiResponse` (`aqi`, `category`, `pollutants`, `advisories`) |
+| `/api/recommend` | `POST` | Per-IP rate limit, payload & schema validation | `{ profile, aqiData }` | `{ recommendations, generatedBy }` |
+| `/api/chat` | `POST` | Per-IP rate limit, length & scope guardrails | `{ messages, profile, aqiData }` | `{ reply, generatedBy }` |
+| `/api/push/subscribe` | `POST`, `DELETE` | Authenticated Supabase user (`401` if guest) | `{ action?, subscription }` | `{ ok: true, sent? }` |
+| `/api/cron/check-air` | `GET`, `POST` | Server-side Bearer `CRON_SECRET` (`401` if invalid) | — | `{ ok, checkedCities, checkedSpaces, notificationsSent }` |
 
 ### 4.2 Database Schema & RLS (`supabase/schema.sql` & `supabase/phase4_alerts.sql`)
 
