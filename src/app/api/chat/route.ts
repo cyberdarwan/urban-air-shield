@@ -5,10 +5,8 @@ import {
   checkRateLimit,
   isPromptInjectionAttempt,
   safeJsonBody,
-  sanitizeAqiData,
-  sanitizeChatMessages,
-  sanitizeProfile,
 } from '@/lib/security';
+import { validateChatPayload } from '@/lib/validators';
 import {
   EXISTING_PROTECTIONS,
   HEALTH_SENSITIVITIES,
@@ -64,25 +62,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const bodyResult = await safeJsonBody<{
-      messages?: unknown;
-      profile?: unknown;
-      aqiData?: unknown;
-    }>(request, 64_000);
+    const bodyResult = await safeJsonBody<unknown>(request, 64_000);
 
     if (!bodyResult.ok) {
       return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
     }
 
-    const msgResult = sanitizeChatMessages(bodyResult.data.messages, 20, 1000);
-    profile = sanitizeProfile(bodyResult.data.profile);
-    aqiData = sanitizeAqiData(bodyResult.data.aqiData);
-
-    if (!msgResult.ok || !profile || !aqiData) {
-      return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
+    const validated = validateChatPayload(bodyResult.data);
+    if (!validated.valid) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
     }
 
-    const messages = msgResult.messages;
+    const messages = validated.data.messages;
+    profile = validated.data.profile;
+    aqiData = validated.data.aqiData;
     const latestUserMessage = messages[messages.length - 1]?.content || '';
 
     if (isPromptInjectionAttempt(latestUserMessage)) {

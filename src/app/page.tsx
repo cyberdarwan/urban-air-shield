@@ -55,20 +55,11 @@ export default function HomePage() {
   const [loadingRecs, setLoadingRecs] = useState(false);
 
   useEffect(() => {
-    const loaded = loadCareSpaces();
-    if (loaded) {
-      setStore(loaded);
-      setShowLanding(false);
-    }
-
+    let active = true;
     const supabase = createSupabaseBrowserClient();
-    if (!supabase) {
-      if (!loaded) setShowLanding(true);
-      setHydrated(true);
-      return;
-    }
 
     const runSync = async (signedInUser: User) => {
+      if (!active) return;
       setSyncingCloud(true);
       try {
         const currentLocal = loadCareSpaces();
@@ -76,38 +67,68 @@ export default function HomePage() {
           signedInUser.id,
           currentLocal
         );
-        if (synced) {
+        if (active && synced) {
           setStore(synced);
           setShowLanding(false);
         }
       } finally {
-        setSyncingCloud(false);
+        if (active) setSyncingCloud(false);
       }
     };
 
-    supabase.auth.getUser().then(({ data }) => {
+    const initializeSession = async () => {
+      const loaded = loadCareSpaces();
+      if (!active) return;
+
+      if (loaded) {
+        setStore(loaded);
+        setShowLanding(false);
+      }
+
+      if (!supabase) {
+        if (!loaded) setShowLanding(true);
+        setHydrated(true);
+        return;
+      }
+
+      const { data } = await supabase.auth.getUser();
+      if (!active) return;
+
       if (data.user) {
         setUser(data.user);
         setShowLanding(false);
-        runSync(data.user).finally(() => setHydrated(true));
+        await runSync(data.user);
+        if (active) setHydrated(true);
       } else {
         if (!loaded) setShowLanding(true);
         setHydrated(true);
       }
-    });
+    };
+
+    void Promise.resolve().then(initializeSession);
+
+    if (!supabase) {
+      return () => {
+        active = false;
+      };
+    }
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
       const nextUser = session?.user ?? null;
       setUser(nextUser);
       if (nextUser) {
         setShowLanding(false);
-        runSync(nextUser);
+        void runSync(nextUser);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const activeCareSpace: CareSpaceProfile | null = store
@@ -177,7 +198,15 @@ export default function HomePage() {
   useEffect(() => {
     if (profile && !editingProfile) {
       const controller = new AbortController();
-      fetchTelemetryAndRecommendations(profile, simulateSevere, controller.signal);
+      void Promise.resolve().then(() => {
+        if (!controller.signal.aborted) {
+          void fetchTelemetryAndRecommendations(
+            profile,
+            simulateSevere,
+            controller.signal
+          );
+        }
+      });
       return () => controller.abort();
     }
   }, [profile, editingProfile, simulateSevere, fetchTelemetryAndRecommendations]);

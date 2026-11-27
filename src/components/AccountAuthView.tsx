@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import type { User } from '@supabase/supabase-js';
 import {
   Bell,
@@ -304,9 +305,12 @@ export default function AccountAuthView({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             {avatarUrl ? (
-              <img
+              <Image
                 src={avatarUrl}
                 alt={user.email || 'Account'}
+                width={40}
+                height={40}
+                unoptimized
                 className="h-10 w-10 rounded-full border border-[#E7E5E0] object-cover"
               />
             ) : (

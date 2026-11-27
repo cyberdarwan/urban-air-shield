@@ -2,17 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as webpush from 'web-push';
 import { safeJsonBody, sanitizeShortText } from '@/lib/security';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-
-interface PushSubscriptionPayload {
-  action?: 'subscribe' | 'test';
-  subscription?: {
-    endpoint?: string;
-    keys?: {
-      p256dh?: string;
-      auth?: string;
-    };
-  };
-}
+import { validatePushSubscribePayload } from '@/lib/validators';
 
 function configureWebPush(): boolean {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -40,14 +30,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const bodyResult = await safeJsonBody<PushSubscriptionPayload>(request, 16_000);
+  const bodyResult = await safeJsonBody<unknown>(request, 16_000);
   if (!bodyResult.ok) {
     return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
   }
 
-  const { action = 'subscribe', subscription } = bodyResult.data;
+  const validated = validatePushSubscribePayload(bodyResult.data);
+  if (!validated.valid) {
+    return NextResponse.json({ error: validated.error }, { status: 400 });
+  }
 
-  if (action === 'test') {
+  if (validated.data.action === 'test') {
     if (!configureWebPush()) {
       return NextResponse.json(
         { error: 'VAPID keys not configured on server' },
@@ -96,20 +89,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, sent });
   }
 
-  const endpoint = sanitizeShortText(subscription?.endpoint, 1000);
-  const p256dh = sanitizeShortText(subscription?.keys?.p256dh, 500);
-  const auth = sanitizeShortText(subscription?.keys?.auth, 500);
-
-  if (!endpoint || !p256dh || !auth) {
-    return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
-  }
+  const { endpoint, keys } = validated.data.subscription;
 
   const { error } = await supabase.from('push_subscriptions').upsert(
     {
       user_id: user.id,
       endpoint,
-      p256dh,
-      auth,
+      p256dh: keys.p256dh,
+      auth: keys.auth,
     },
     { onConflict: 'endpoint' }
   );

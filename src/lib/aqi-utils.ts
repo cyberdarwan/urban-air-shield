@@ -152,12 +152,55 @@ export function calculateAqi(pollutants: PollutantLevels): number {
   return Math.max(...subIndices);
 }
 
+export type AqiSeverity = 'safe' | 'moderate' | 'caution' | 'severe';
+
+/**
+ * Safely sanitizes and clamps a raw numeric AQI value into the Indian CPCB 0–500 range.
+ * Non-finite, `NaN`, and negative values are safely clamped to `0`.
+ */
+export function clampAqi(value: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.min(500, Math.max(0, Math.round(value)));
+}
+
+/**
+ * Classifies a numeric AQI value into four user-facing severity tiers.
+ */
+export function classifyAqiSeverity(aqi: number): AqiSeverity {
+  const safeAqi = clampAqi(aqi);
+  if (safeAqi <= 100) return 'safe';
+  if (safeAqi <= 200) return 'moderate';
+  if (safeAqi <= 300) return 'caution';
+  return 'severe';
+}
+
+/**
+ * Evaluates whether a live AQI reading is within a Care Space's personalized safe ceiling.
+ * Returns `false` for non-finite inputs to fail safely.
+ */
+export function isAirSafe(aqi: number, safeLimit: number): boolean {
+  if (
+    typeof aqi !== 'number' ||
+    !Number.isFinite(aqi) ||
+    typeof safeLimit !== 'number' ||
+    !Number.isFinite(safeLimit)
+  ) {
+    return false;
+  }
+  const normalizedAqi = clampAqi(aqi);
+  const normalizedLimit = Math.max(0, Math.round(safeLimit));
+  return normalizedAqi <= normalizedLimit;
+}
+
 export function getAqiCategory(aqi: number): AqiCategory {
-  if (aqi <= 50) return 'Good';
-  if (aqi <= 100) return 'Satisfactory';
-  if (aqi <= 200) return 'Moderate';
-  if (aqi <= 300) return 'Poor';
-  if (aqi <= 400) return 'Very Poor';
+  const safeAqi = clampAqi(aqi);
+  if (safeAqi <= 50) return 'Good';
+  if (safeAqi <= 100) return 'Satisfactory';
+  if (safeAqi <= 200) return 'Moderate';
+  if (safeAqi <= 300) return 'Poor';
+  if (safeAqi <= 400) return 'Very Poor';
   return 'Severe';
 }
 
@@ -318,7 +361,11 @@ export interface HourlyWindow {
   status: 'Safe Window' | 'Moderate' | 'Peak Smog';
 }
 
+/**
+ * Generates the 06:00–22:00 diurnal hourly air quality estimate curve from a baseline AQI.
+ */
 export function buildHourlyTimeline(currentAqi: number): HourlyWindow[] {
+  const baselineAqi = clampAqi(currentAqi);
   // Diurnal winter smog curve: early morning & late evening thermal inversion peaks, midday mixing dip
   const factors = [
     { hourLabel: '06:00', factor: 1.18 },
@@ -333,13 +380,35 @@ export function buildHourlyTimeline(currentAqi: number): HourlyWindow[] {
   ];
 
   return factors.map(({ hourLabel, factor }) => {
-    const estimatedAqi = Math.min(500, Math.max(20, Math.round(currentAqi * factor)));
+    const estimatedAqi = Math.min(
+      500,
+      Math.max(20, Math.round(baselineAqi * factor))
+    );
     let status: HourlyWindow['status'] = 'Moderate';
-    if (estimatedAqi <= currentAqi * 0.82 && estimatedAqi < 300) {
+    if (estimatedAqi <= baselineAqi * 0.82 && estimatedAqi < 300) {
       status = 'Safe Window';
-    } else if (estimatedAqi >= currentAqi * 1.12 || estimatedAqi >= 300) {
+    } else if (estimatedAqi >= baselineAqi * 1.12 || estimatedAqi >= 300) {
       status = 'Peak Smog';
     }
     return { hourLabel, estimatedAqi, status };
   });
+}
+
+/**
+ * Finds the safest (lowest estimated AQI) time slot along an hourly timeline.
+ */
+export function findSafestHourlyWindow(timeline: HourlyWindow[]): {
+  index: number;
+  window: HourlyWindow | null;
+} {
+  if (timeline.length === 0) {
+    return { index: -1, window: null };
+  }
+  let minIdx = 0;
+  for (let i = 1; i < timeline.length; i++) {
+    if (timeline[i].estimatedAqi < timeline[minIdx].estimatedAqi) {
+      minIdx = i;
+    }
+  }
+  return { index: minIdx, window: timeline[minIdx] };
 }

@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import type { HourlyWindow } from '@/lib/aqi-utils';
+import {
+  findSafestHourlyWindow,
+  type HourlyWindow,
+} from '@/lib/aqi-utils';
 
 interface HourlyAirWaveProps {
   timeline: HourlyWindow[];
@@ -53,14 +56,8 @@ export default function HourlyAirWave({
   stepOutWindows = [],
 }: HourlyAirWaveProps) {
   const bestIndex = useMemo(() => {
-    if (timeline.length === 0) return 0;
-    let minIdx = 0;
-    for (let i = 1; i < timeline.length; i++) {
-      if (timeline[i].estimatedAqi < timeline[minIdx].estimatedAqi) {
-        minIdx = i;
-      }
-    }
-    return minIdx;
+    const { index } = findSafestHourlyWindow(timeline);
+    return index >= 0 ? index : 0;
   }, [timeline]);
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -180,6 +177,12 @@ export default function HourlyAirWave({
                 onMouseEnter={() => setSelectedIndex(idx)}
                 onClick={() => setSelectedIndex(idx)}
                 onFocus={() => setSelectedIndex(idx)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedIndex(idx);
+                  }
+                }}
                 tabIndex={0}
                 role="button"
                 aria-label={`${slot.hourLabel}: AQI ${slot.estimatedAqi}, ${slot.status}`}
@@ -221,6 +224,7 @@ export default function HourlyAirWave({
             <button
               key={slot.hourLabel}
               type="button"
+              aria-pressed={isActive}
               onMouseEnter={() => setSelectedIndex(idx)}
               onClick={() => setSelectedIndex(idx)}
               className={`text-center py-1 rounded-lg text-[11px] transition-colors cursor-pointer tabular-nums ${

@@ -1,9 +1,7 @@
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type {
-  AqiResponse,
   CareSpaceProfile,
   CareSpacesStore,
-  RecommendationPayload,
   UserProfile,
 } from '@/types/air-quality';
 
@@ -122,61 +120,10 @@ export function saveCareSpaces(store: CareSpacesStore): void {
   }
 }
 
-export function formatWhatsAppBrief(
-  space: CareSpaceProfile,
-  aqiData: AqiResponse,
-  recommendations?: RecommendationPayload | null
-): string {
-  const isSafe = aqiData.aqi <= space.safeAqiLimit;
-  const verdict = isSafe
-    ? `Okay to Move Out (${aqiData.aqi} <= ${space.safeAqiLimit} limit)`
-    : `Caution: Delay Outdoor Activity (${aqiData.aqi} > ${space.safeAqiLimit} limit)`;
-
-  const bestWindow =
-    recommendations?.clockWindows?.bestWindowToStepOut || '12:00 PM - 4:00 PM';
-  const checklist =
-    recommendations?.todaysPracticalMoves?.quickChecklist?.slice(0, 2) || [];
-
-  const lines = [
-    `*SmogSense Air Brief — ${space.label}*`,
-    `City: ${space.city}${space.profile.location.town ? ` (${space.profile.location.town})` : ''}`,
-    `Live AQI: *${aqiData.aqi}* (${aqiData.category})`,
-    `Movement Verdict: *${verdict}*`,
-    `Best Outdoor Window: ${bestWindow}`,
-  ];
-
-  if (checklist.length > 0) {
-    lines.push('', 'Today’s Top Moves:');
-    for (const item of checklist) {
-      lines.push(`• ${item}`);
-    }
-  }
-
-  return lines.join('\n');
-}
-
-export function formatFamilyRollupWhatsAppBrief(
-  spaces: CareSpaceProfile[],
-  cityAqiMap: Record<string, AqiResponse>
-): string {
-  const lines = ['*SmogSense Family Air Check-In*'];
-  for (const space of spaces) {
-    const data = cityAqiMap[space.city.toLowerCase()];
-    if (data) {
-      const ok = data.aqi <= space.safeAqiLimit;
-      lines.push(
-        `• *${space.label}* (${space.city}): ${data.aqi} AQI (${data.category}) — ${
-          ok ? `Okay to Move Out (<=${space.safeAqiLimit})` : `Caution (>${space.safeAqiLimit})`
-        }`
-      );
-    } else {
-      lines.push(
-        `• *${space.label}* (${space.city}): Safe limit <= ${space.safeAqiLimit} AQI`
-      );
-    }
-  }
-  return lines.join('\n');
-}
+export {
+  formatWhatsAppBrief,
+  formatFamilyRollupWhatsAppBrief,
+} from '@/lib/whatsapp-formatter';
 
 export async function shareViaWhatsApp(
   message: string

@@ -14,13 +14,17 @@ import {
   X,
 } from 'lucide-react';
 import CitySelector from '@/components/CitySelector';
+import { deduplicateCities } from '@/lib/alert-evaluator';
+import { isAirSafe } from '@/lib/aqi-utils';
 import {
   SAFE_AQI_PRESETS,
   createCareSpaceId,
-  formatFamilyRollupWhatsAppBrief,
-  formatWhatsAppBrief,
   shareViaWhatsApp,
 } from '@/lib/care-spaces';
+import {
+  formatFamilyRollupWhatsAppBrief,
+  formatWhatsAppBrief,
+} from '@/lib/whatsapp-formatter';
 import {
   EXISTING_PROTECTIONS,
   HEALTH_SENSITIVITIES,
@@ -324,9 +328,7 @@ export default function FamilyProfilesView({
   const refreshAllFamilyCities = async () => {
     setRefreshingRollup(true);
     try {
-      const uniqueCities = Array.from(
-        new Set(careSpaces.map((cs) => cs.city.trim()).filter(Boolean))
-      );
+      const uniqueCities = deduplicateCities(careSpaces);
       const entries = await Promise.all(
         uniqueCities.map(async (c) => {
           const res = await fetch(
@@ -422,8 +424,8 @@ export default function FamilyProfilesView({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {careSpaces.map((space) => {
-            const live = cityAqiMap[space.city.toLowerCase()];
-            const isOk = live ? live.aqi <= space.safeAqiLimit : null;
+            const live = cityAqiMap[space.city.trim().toLowerCase()];
+            const isOk = live ? isAirSafe(live.aqi, space.safeAqiLimit) : null;
             return (
               <div
                 key={space.id}
@@ -504,6 +506,7 @@ export default function FamilyProfilesView({
               <button
                 type="button"
                 onClick={() => setFormOpen(false)}
+                aria-label="Close Care Space form"
                 className="h-7 w-7 rounded-lg text-[#475569] hover:text-[#0F172A] hover:bg-[#F4F2ED] flex items-center justify-center cursor-pointer"
               >
                 <X className="h-4 w-4" />

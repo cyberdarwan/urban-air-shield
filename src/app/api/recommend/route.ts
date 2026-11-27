@@ -8,9 +8,8 @@ import {
 import {
   checkRateLimit,
   safeJsonBody,
-  sanitizeAqiData,
-  sanitizeProfile,
 } from '@/lib/security';
+import { validateGuidancePayload } from '@/lib/validators';
 import {
   EXISTING_PROTECTIONS,
   HEALTH_SENSITIVITIES,
@@ -400,21 +399,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const bodyResult = await safeJsonBody<{
-      profile?: unknown;
-      aqiData?: unknown;
-    }>(request, 64_000);
+    const bodyResult = await safeJsonBody<unknown>(request, 64_000);
 
     if (!bodyResult.ok) {
       return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
     }
 
-    profile = sanitizeProfile(bodyResult.data.profile);
-    aqiData = sanitizeAqiData(bodyResult.data.aqiData);
-
-    if (!profile || !aqiData) {
-      return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
+    const validated = validateGuidancePayload(bodyResult.data);
+    if (!validated.valid) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
     }
+
+    profile = validated.data.profile;
+    aqiData = validated.data.aqiData;
 
     const cacheKey = buildCacheKey(profile, aqiData);
     const now = Date.now();

@@ -9,7 +9,8 @@ import {
   User,
   X,
 } from 'lucide-react';
-import { formatWhatsAppBrief, shareViaWhatsApp } from '@/lib/care-spaces';
+import { shareViaWhatsApp } from '@/lib/care-spaces';
+import { formatWhatsAppBrief } from '@/lib/whatsapp-formatter';
 import type {
   AqiResponse,
   CareSpaceProfile,

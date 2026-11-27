@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as webpush from 'web-push';
+import {
+  deduplicateCities,
+  evaluateThresholdFlip,
+} from '@/lib/alert-evaluator';
 import { fetchLiveCityAqi } from '@/lib/live-aqi';
 
 interface CareSpaceAlertRow {
@@ -77,10 +81,8 @@ async function handleCheckAir(request: NextRequest) {
     });
   }
 
-  // Deduplicate unique cities so we fetch live AQI once per city (zero Gemini calls)
-  const uniqueCities = Array.from(
-    new Set(activeSpaces.map((s) => s.city.trim()).filter(Boolean))
-  );
+  // Deduplicate unique cities case-insensitively so we fetch live AQI once per city (zero Gemini calls)
+  const uniqueCities = deduplicateCities(activeSpaces);
 
   const cityAqiEntries = await Promise.all(
     uniqueCities.map(async (city) => {
@@ -108,53 +110,55 @@ async function handleCheckAir(request: NextRequest) {
   let statusesUpdated = 0;
 
   for (const space of activeSpaces) {
-    const aqiInfo = cityAqiMap[space.city.toLowerCase()];
+    const aqiInfo = cityAqiMap[space.city.trim().toLowerCase()];
     if (!aqiInfo) continue;
 
-    const nextStatus: 'safe' | 'caution' =
-      aqiInfo.aqi <= space.safe_aqi_limit ? 'safe' : 'caution';
+    const evaluation = evaluateThresholdFlip(
+      space.last_alert_status,
+      aqiInfo.aqi,
+      space.safe_aqi_limit
+    );
 
-    // Only alert when status transitions (or on initial state)
-    if (space.last_alert_status === nextStatus) {
-      continue;
-    }
+    if (evaluation.shouldNotify) {
+      const userSubs = subsByUser.get(space.user_id) || [];
+      const title =
+        evaluation.nextStatus === 'caution'
+          ? `Caution in ${space.label} (${space.city})`
+          : `Okay to Move Out in ${space.label} (${space.city})`;
+      const body =
+        evaluation.nextStatus === 'caution'
+          ? `Live AQI is ${aqiInfo.aqi} (${aqiInfo.category}), above your ${space.safe_aqi_limit} limit. Delay outdoor activity or wear a snug mask.`
+          : `Live AQI dropped to ${aqiInfo.aqi} (${aqiInfo.category}), back within your ${space.safe_aqi_limit} limit.`;
 
-    const userSubs = subsByUser.get(space.user_id) || [];
-    const title =
-      nextStatus === 'caution'
-        ? `Caution in ${space.label} (${space.city})`
-        : `Okay to Move Out in ${space.label} (${space.city})`;
-    const body =
-      nextStatus === 'caution'
-        ? `Live AQI is ${aqiInfo.aqi} (${aqiInfo.category}), above your ${space.safe_aqi_limit} limit. Delay outdoor activity or wear a snug mask.`
-        : `Live AQI dropped to ${aqiInfo.aqi} (${aqiInfo.category}), back within your ${space.safe_aqi_limit} limit.`;
-
-    for (const sub of userSubs) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth },
-          },
-          JSON.stringify({ title, body, url: '/' })
-        );
-        notificationsSent += 1;
-      } catch (err: unknown) {
-        const statusCode =
-          typeof err === 'object' && err !== null && 'statusCode' in err
-            ? Number((err as { statusCode?: number }).statusCode)
-            : 0;
-        if (statusCode === 410 || statusCode === 404) {
-          await admin.from('push_subscriptions').delete().eq('id', sub.id);
+      for (const sub of userSubs) {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
+            },
+            JSON.stringify({ title, body, url: '/' })
+          );
+          notificationsSent += 1;
+        } catch (err: unknown) {
+          const statusCode =
+            typeof err === 'object' && err !== null && 'statusCode' in err
+              ? Number((err as { statusCode?: number }).statusCode)
+              : 0;
+          if (statusCode === 410 || statusCode === 404) {
+            await admin.from('push_subscriptions').delete().eq('id', sub.id);
+          }
         }
       }
     }
 
-    await admin
-      .from('care_spaces')
-      .update({ last_alert_status: nextStatus })
-      .eq('id', space.id);
-    statusesUpdated += 1;
+    if (space.last_alert_status !== evaluation.nextStatus) {
+      await admin
+        .from('care_spaces')
+        .update({ last_alert_status: evaluation.nextStatus })
+        .eq('id', space.id);
+      statusesUpdated += 1;
+    }
   }
 
   return NextResponse.json({

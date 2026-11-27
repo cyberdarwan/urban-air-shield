@@ -152,3 +152,28 @@ npm run test:apis    # Live diagnostic check against OpenAQ v3 & Gemini waterfal
 1. Push your branch to GitHub and import the repository in **Vercel**.
 2. Add all environment variables from `.env.local` into **Vercel → Project Settings → Environment Variables**.
 3. Configure an external cron runner (e.g., cron-job.org or GitHub Actions) to call `GET https://<your-vercel-domain>/api/cron/check-air` hourly with header `Authorization: Bearer <CRON_SECRET>`.
+
+---
+
+## Testing, Validation & Architecture
+
+Core domain logic is separated into pure, side-effect-free TypeScript modules under `src/lib/` so UI components and API routes stay thin and deterministic:
+
+- `src/lib/aqi-utils.ts` — CPCB linear sub-index calculation, safe AQI clamping (`clampAqi`), severity classification (`classifyAqiSeverity`), custom threshold checks (`isAirSafe`), diurnal timeline generation, and safest-window lookup (`findSafestHourlyWindow`).
+- `src/lib/alert-evaluator.ts` — Phase 4 threshold transition evaluator (`evaluateThresholdFlip`) and case-insensitive city deduplication (`deduplicateCities`) for single-fetch OpenAQ efficiency.
+- `src/lib/whatsapp-formatter.ts` — Pure single-space and multi-city family rollup WhatsApp brief formatters with graceful defaults for missing optional fields.
+- `src/lib/validators.ts` — Zero-dependency request payload validators for AI guidance (`/api/recommend`), AI chat (`/api/chat`), and Web Push subscription (`/api/push/subscribe`) routes.
+
+### Verification Commands
+All automated tests run 100% offline with mocked Supabase, `web-push`, OpenAQ, and Gemini dependencies via **Vitest** and **React Testing Library**:
+
+```bash
+npm run typecheck      # Strict TypeScript check (tsc --noEmit)
+npm run lint           # ESLint verification
+npm test               # Run unit, API route, and UI component test suites
+npm run test:coverage  # Run tests with v8 code coverage report
+npm run build          # Full Next.js production build
+```
+
+GitHub Actions CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) automatically runs `typecheck`, `lint`, `test`, and `build` on every push and pull request to `main`.
+
