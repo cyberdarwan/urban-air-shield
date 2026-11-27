@@ -38,46 +38,65 @@
 │   └── sw.js                          # Service Worker for Web Push & notificationclick
 ├── scripts/
 │   └── test-apis.mjs                  # Local CLI diagnostic for OpenAQ v3 & Gemini waterfall
+├── .github/workflows/ci.yml           # CI pipeline: typecheck -> lint -> test -> build
+├── vitest.config.mts                  # Vitest + React Testing Library + v8 coverage (85% thresholds)
 ├── supabase/
 │   ├── schema.sql                     # Phase 3: care_spaces table + user_id index + RLS
 │   └── phase4_alerts.sql              # Phase 4: push_subscriptions table + alert columns
 ├── src/
-│   ├── middleware.ts                  # Refreshes Supabase HTTP-only auth cookies
+│   ├── proxy.ts                       # Next.js 16 proxy refreshing Supabase cookies (excludes public/cron APIs)
+│   ├── hooks/
+│   │   └── useCareSpaces.ts           # Care Space state, Supabase sync, and AbortController telemetry hook
 │   ├── types/
 │   │   └── air-quality.ts             # CareSpaceProfile, UserProfile, AqiResponse, RecommendationPayload
 │   ├── lib/
-│   │   ├── aqi-utils.ts               # Indian CPCB breakpoints, unit conversion, regional advisories, diurnal curve
-│   │   ├── care-spaces.ts             # localStorage store, legacy migration, WhatsApp briefs, Supabase sync
+│   │   ├── alert-evaluator.ts         # Phase 4 threshold transition evaluator & case-insensitive city dedup
+│   │   ├── aqi-fallback.ts            # Severe simulation & regional baseline fallback builder
+│   │   ├── aqi-utils.ts               # Indian CPCB breakpoints, clampAqi, classifyAqiSeverity, isAirSafe, timeline
+│   │   ├── care-spaces.ts             # localStorage store, legacy migration, Supabase two-way sync
 │   │   ├── city-coords.ts             # Coordinates for 60+ Indian cities
-│   │   ├── gemini.ts                  # Gemini 3 waterfall client + 8s timeout wrapper
-│   │   ├── live-aqi.ts                # Shared OpenAQ v3 -> CPCB -> baseline fetcher + debug metadata
-│   │   ├── security.ts                # Per-IP rate limiter, safeJsonBody, sanitization, prompt-injection guard
+│   │   ├── cpcb-client.ts             # Secondary live CPCB (data.gov.in) client
+│   │   ├── gemini.ts                  # Gemini 3 waterfall client + timeout wrapper
+│   │   ├── live-aqi.ts                # OpenAQ -> CPCB -> baseline orchestrator with 3-min per-city cache
+│   │   ├── openaq-client.ts           # OpenAQ v3 live sensor client & Open-Meteo Indian geocoder
+│   │   ├── recommendation-fallback.ts # Deterministic harm-reduction & chat fallback builders
+│   │   ├── recommendation-schema.ts   # Structured Gemini JSON response schema
+│   │   ├── regional-advisories.ts     # CAQM GRAP (Delhi/NCR) vs. CPCB Citizen Guidance advisories
+│   │   ├── security.ts                # Timing-safe Bearer auth, per-IP rate limiter, sanitizers, anti-injection
+│   │   ├── validators.ts              # Zero-dependency payload validators (guidance, chat, HTTPS push sub)
+│   │   ├── whatsapp-formatter.ts      # Pure single-space & family rollup WhatsApp brief formatters
 │   │   └── supabase/
 │   │       ├── client.ts              # Safe browser Supabase client (null when unconfigured)
 │   │       └── server.ts              # SSR/Route Handler Supabase client using cookies()
 │   ├── app/
+│   │   ├── error.tsx                  # Atmospheric Daylight client Error Boundary with Retry button
 │   │   ├── globals.css                # Atmospheric Daylight tokens + reduced-motion keyframes
-│   │   ├── layout.tsx                 # Root layout & Geist fonts
-│   │   ├── page.tsx                   # Smart routing (Landing / Onboarding / Multi-View Shell) + AbortController
+│   │   ├── layout.tsx                 # Root layout, Geist fonts, and skip-to-main-content link
+│   │   ├── page.tsx                   # Smart routing shell (Landing / Onboarding / Multi-View Dashboard)
 │   │   ├── auth/callback/route.ts     # Exchanges OAuth/Magic Link code for persistent session
 │   │   └── api/
-│   │       ├── aqi/route.ts           # GET live AQI + CPCB sub-indices + debug metadata
+│   │       ├── aqi/route.ts           # GET live AQI (rate-limited, 3-min cache + ?refresh=1 bypass)
 │   │       ├── recommend/route.ts     # POST structured Gemini 3 harm-reduction plan (cached + rate-limited)
 │   │       ├── chat/route.ts          # POST contextual Air Expert chat (rate-limited + anti-injection)
 │   │       ├── push/subscribe/route.ts# POST/DELETE browser PushSubscription + test alert
-│   │       └── cron/check-air/route.ts# GET/POST zero-Gemini hourly threshold alert runner
+│   │       └── cron/check-air/route.ts# GET/POST zero-Gemini hourly threshold alert runner (timing-safe auth)
 │   └── components/
 │       ├── LandingPage.tsx            # Animated Atmospheric Daylight hero + Guest / Sign In entry
-│       ├── OnboardingWizard.tsx       # 3-step multi-select + "+ Other / Custom" routine setup
+│       ├── AuthForm.tsx               # Shared accessible Google OAuth + Email Magic Link form
+│       ├── OnboardingWizard.tsx       # 3-step routine setup wizard
+│       ├── WizardModeDetails.tsx      # School/workplace mode sub-selector
+│       ├── MultiSelectChips.tsx       # Shared accessible multi-select chip & custom entry control
 │       ├── CitySelector.tsx           # 8 metro quick-taps + searchable 60+ city dropdown + manual entry
-│       ├── Dashboard.tsx              # Hero AQI + pulsing safety ring, verdict, pollutants, moves, upgrades
-│       ├── HourlyAirWave.tsx          # Compact 136px SVG spline curve + routine markers + inline inspector
-│       ├── MenuDrawer.tsx             # Slide-out nav drawer + Quick Controls (Refresh, Simulate, Welcome)
-│       ├── FamilyProfilesView.tsx     # Care Space CRUD, multi-city rollup, WhatsApp family check-in
+│       ├── Dashboard.tsx              # Hero AQI + pulsing safety ring, verdict, pollutants, hourly wave
+│       ├── GuidanceSection.tsx        # Today's Practical Moves, Regional Advisory & Future Upgrades
+│       ├── HourlyAirWave.tsx          # Compact 136px SVG spline curve + routine markers + live inspector
+│       ├── MenuDrawer.tsx             # Accessible modal nav drawer + Quick Controls
+│       ├── FamilyProfilesView.tsx     # Multi-city family rollup, Care Space cards, WhatsApp check-in
+│       ├── CareSpaceForm.tsx          # Accessible inline Care Space add/edit form + AQI ceiling slider
 │       ├── HelpGuideView.tsx          # Indian CPCB 0–500 scale, 6-pollutant guide, calculation explainer
-│       ├── AccountAuthView.tsx        # Passwordless Google/Magic Link auth, Sync Now, Web Push controls
-│       └── ExpertChatBox.tsx          # Stacked circular FABs (WhatsApp Share + AI Expert) & popover chat
-└── next.config.ts                     # Turbopack CSS rule + HTTP security headers
+│       ├── AccountAuthView.tsx        # Cloud sync summary, Web Push controls, per-space alert switches
+│       └── ExpertChatBox.tsx          # Stacked circular FABs (WhatsApp Share + AI Expert) & modal chat
+└── next.config.ts                     # Turbopack CSS rule + CSP, HSTS & HTTP security headers
 ```
 
 ---

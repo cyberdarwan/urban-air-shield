@@ -83,6 +83,8 @@ export default function CitySelector({
       <div>
         <button
           type="button"
+          aria-expanded={open}
+          aria-haspopup="listbox"
           onClick={() => setOpen((prev) => !prev)}
           className={
             variant === 'compact'
@@ -91,7 +93,7 @@ export default function CitySelector({
           }
         >
           <span className="inline-flex items-center gap-1.5 truncate">
-            <MapPin className="h-3.5 w-3.5 text-[#059669] shrink-0" />
+            <MapPin className="h-3.5 w-3.5 text-[#059669] shrink-0" aria-hidden="true" />
             <span className="font-medium truncate">
               {value || 'Search 60+ Indian cities or type your own...'}
             </span>
@@ -100,6 +102,7 @@ export default function CitySelector({
             className={`h-3.5 w-3.5 text-[#475569] shrink-0 transition-transform ${
               open ? 'rotate-180' : ''
             }`}
+            aria-hidden="true"
           />
         </button>
 
@@ -112,9 +115,10 @@ export default function CitySelector({
             {/* Search Input */}
             <div className="p-2.5 border-b border-[#E7E5E0]">
               <div className="flex items-center gap-2 rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] focus-within:border-[#059669] px-3 py-2">
-                <Search className="h-3.5 w-3.5 text-[#475569] shrink-0" />
+                <Search className="h-3.5 w-3.5 text-[#475569] shrink-0" aria-hidden="true" />
                 <input
                   type="text"
+                  aria-label="Search Indian cities"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search city (e.g. Kochi, Indore, Noida)..."
@@ -164,6 +168,7 @@ export default function CitySelector({
               <div className="flex items-center gap-1.5">
                 <input
                   type="text"
+                  aria-label="Enter any Indian city or town manually"
                   value={manualCity}
                   onChange={(e) => setManualCity(e.target.value)}
                   onKeyDown={(e) => {

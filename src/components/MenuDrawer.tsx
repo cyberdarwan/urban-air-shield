@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Bell,
   BookOpen,
@@ -77,13 +77,21 @@ export default function MenuDrawer({
   onToggleSimulate,
   onOpenLanding,
 }: MenuDrawerProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -100,6 +108,7 @@ export default function MenuDrawer({
       {/* Slide-Out Atmospheric Daylight Panel */}
       <aside
         role="dialog"
+        aria-modal="true"
         aria-label="Navigation menu"
         className="relative z-50 w-72 sm:w-80 max-w-[85vw] h-full bg-[#FAF9F6]/95 backdrop-blur-xl border-r border-[#E7E5E0] shadow-xl flex flex-col justify-between"
       >
@@ -108,7 +117,7 @@ export default function MenuDrawer({
           <div className="px-5 py-4 border-b border-[#E7E5E0] flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-xl bg-white/80 border border-[#E7E5E0] shadow-sm flex items-center justify-center text-[#059669]">
-                <Wind className="h-4 w-4" />
+                <Wind className="h-4 w-4" aria-hidden="true" />
               </div>
               <div>
                 <div className="text-sm font-bold tracking-tight text-[#0F172A]">
@@ -120,12 +129,13 @@ export default function MenuDrawer({
               </div>
             </div>
             <button
+              ref={closeButtonRef}
               type="button"
               onClick={onClose}
               aria-label="Close navigation menu"
               className="h-8 w-8 rounded-lg text-[#475569] hover:text-[#0F172A] hover:bg-white/80 flex items-center justify-center transition-colors cursor-pointer"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 

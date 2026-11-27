@@ -27,6 +27,7 @@ vi.mock('@google/genai', () => ({
 }));
 
 import { GET, POST } from '@/app/api/cron/check-air/route';
+import { clearAqiCache } from '@/lib/live-aqi';
 
 interface MockCareSpaceRow {
   id: string;
@@ -108,6 +109,7 @@ describe('/api/cron/check-air', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    clearAqiCache();
     process.env.CRON_SECRET = 'test-cron-secret';
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';

@@ -170,10 +170,10 @@ export function validatePushSubscribePayload(
     return { valid: false, error: 'Push subscription endpoint must be a valid URL.' };
   }
 
-  if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+  if (parsedUrl.protocol !== 'https:') {
     return {
       valid: false,
-      error: 'Push subscription endpoint must use http or https protocol.',
+      error: 'Push subscription endpoint must use https protocol.',
     };
   }
 

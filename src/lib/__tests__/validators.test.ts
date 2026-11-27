@@ -149,6 +149,15 @@ describe('validators', () => {
       expect(
         validatePushSubscribePayload({
           subscription: {
+            endpoint: 'http://insecure.example.com/sub',
+            keys: { p256dh: 'key', auth: 'auth' },
+          },
+        }).valid
+      ).toBe(false);
+
+      expect(
+        validatePushSubscribePayload({
+          subscription: {
             endpoint: 'not-a-valid-url',
             keys: { p256dh: 'key', auth: 'auth' },
           },

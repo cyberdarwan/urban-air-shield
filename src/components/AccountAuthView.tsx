@@ -5,17 +5,14 @@ import Image from 'next/image';
 import type { User } from '@supabase/supabase-js';
 import {
   Bell,
-  CheckCircle2,
   Cloud,
   LogOut,
-  Mail,
   RefreshCw,
+  Send,
   ShieldCheck,
 } from 'lucide-react';
-import {
-  createSupabaseBrowserClient,
-  isSupabaseConfigured,
-} from '@/lib/supabase/client';
+import AuthForm from '@/components/AuthForm';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
 import type { CareSpaceProfile } from '@/types/air-quality';
 
 interface AccountAuthViewProps {
@@ -27,6 +24,18 @@ interface AccountAuthViewProps {
   onSignOut: () => Promise<void>;
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const buffer = new ArrayBuffer(rawData.length);
+  const outputArray = new Uint8Array(buffer);
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export default function AccountAuthView({
   user,
   careSpaces,
@@ -35,44 +44,22 @@ export default function AccountAuthView({
   onToggleNotify,
   onSignOut,
 }: AccountAuthViewProps) {
-  const [email, setEmail] = useState('');
-  const [sendingLink, setSendingLink] = useState(false);
-  const [linkSent, setLinkSent] = useState(false);
-  const [authError, setAuthError] = useState('');
   const [pushLoading, setPushLoading] = useState(false);
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushStatusMsg, setPushStatusMsg] = useState<string | null>(null);
+  const [pushStatus, setPushStatus] = useState('');
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+
   const supabaseReady = isSupabaseConfigured();
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
-  const urlBase64ToUint8Array = (base64String: string) => {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding)
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  };
-
-  const handleEnableBrowserPush = async () => {
-    setPushStatusMsg(null);
-    if (
-      typeof window === 'undefined' ||
-      !('Notification' in window) ||
-      !('serviceWorker' in navigator) ||
-      !('PushManager' in window)
-    ) {
-      setPushStatusMsg('Browser push notifications are not supported here.');
+  const handleEnablePush = async () => {
+    setPushStatus('');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushStatus('Browser Web Push is not supported on this device.');
       return;
     }
-
-    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!vapidPublicKey) {
-      setPushStatusMsg(
-        'NEXT_PUBLIC_VAPID_PUBLIC_KEY is not configured yet in this environment.'
+      setPushStatus(
+        'VAPID public key is not configured yet (set NEXT_PUBLIC_VAPID_PUBLIC_KEY).'
       );
       return;
     }
@@ -81,7 +68,9 @@ export default function AccountAuthView({
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        setPushStatusMsg('Notification permission was denied in browser settings.');
+        setPushStatus(
+          'Notification permission was blocked. Allow notifications in browser settings to receive AQI alerts.'
+        );
         return;
       }
 
@@ -106,23 +95,27 @@ export default function AccountAuthView({
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        setPushStatusMsg(errJson.error || 'Could not save push subscription.');
+        const errData = await res.json().catch(() => ({}));
+        setPushStatus(errData.error || 'Failed to save push subscription.');
         return;
       }
 
-      setPushEnabled(true);
-      setPushStatusMsg('Browser push alerts enabled on this device.');
-    } catch {
-      setPushStatusMsg('Failed to register push notifications.');
+      setPushSubscribed(true);
+      setPushStatus(
+        'Push alerts enabled on this device. Toggle alerts per Care Space below.'
+      );
+    } catch (err) {
+      setPushStatus(
+        err instanceof Error ? err.message : 'Unable to enable push alerts.'
+      );
     } finally {
       setPushLoading(false);
     }
   };
 
-  const handleSendTestAlert = async () => {
+  const handleTestPush = async () => {
     setPushLoading(true);
-    setPushStatusMsg(null);
+    setPushStatus('');
     try {
       const res = await fetch('/api/push/subscribe', {
         method: 'POST',
@@ -131,59 +124,14 @@ export default function AccountAuthView({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setPushStatusMsg(data.error || 'Could not send test alert.');
+        setPushStatus(data.error || 'Could not send test alert.');
       } else {
-        setPushStatusMsg(`Test alert sent to ${data.sent ?? 1} device(s).`);
+        setPushStatus(
+          `Test notification sent to ${data.sent || 1} subscribed device(s).`
+        );
       }
-    } catch {
-      setPushStatusMsg('Network error sending test alert.');
     } finally {
       setPushLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase) return;
-    setAuthError('');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    if (error) {
-      setAuthError(error.message);
-    }
-  };
-
-  const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = email.trim();
-    if (!trimmed) {
-      setAuthError('Please enter your email address.');
-      return;
-    }
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase) return;
-
-    setSendingLink(true);
-    setAuthError('');
-    setLinkSent(false);
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: trimmed,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (error) {
-        setAuthError(error.message);
-      } else {
-        setLinkSent(true);
-      }
-    } finally {
-      setSendingLink(false);
     }
   };
 
@@ -192,14 +140,16 @@ export default function AccountAuthView({
       <section className="rounded-2xl bg-white/80 backdrop-blur-md border border-[#E7E5E0] shadow-sm p-6 space-y-4">
         <div className="flex items-center gap-2.5">
           <div className="h-9 w-9 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center text-[#059669]">
-            <Cloud className="h-4 w-4" />
+            <Cloud className="h-4 w-4" aria-hidden="true" />
           </div>
           <div>
             <h2 className="text-base font-bold text-[#0F172A]">
               Guest Mode Active (Cloud Sync Ready)
             </h2>
             <p className="text-xs text-[#475569]">
-              Your {careSpaces.length} Care Space{careSpaces.length === 1 ? '' : 's'} are saved privately in your browser.
+              Your {careSpaces.length} Care Space
+              {careSpaces.length === 1 ? '' : 's'} are saved privately in your
+              browser.
             </p>
           </div>
         </div>
@@ -228,7 +178,7 @@ export default function AccountAuthView({
       <section className="rounded-2xl bg-white/80 backdrop-blur-md border border-[#E7E5E0] shadow-sm p-6 sm:p-8 max-w-xl space-y-6">
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
-            <ShieldCheck className="h-3.5 w-3.5" />
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
             Passwordless Sign-In
           </div>
           <h2 className="text-lg font-bold text-[#0F172A]">
@@ -240,55 +190,7 @@ export default function AccountAuthView({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white text-sm font-semibold shadow-sm transition-colors cursor-pointer"
-        >
-          <span>Continue with Google</span>
-        </button>
-
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-[#E7E5E0]" />
-          <span className="text-[11px] font-medium uppercase tracking-wider text-[#475569]">
-            Or use email magic link
-          </span>
-          <div className="h-px flex-1 bg-[#E7E5E0]" />
-        </div>
-
-        <form onSubmit={handleMagicLink} className="space-y-3">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="flex-1 rounded-xl bg-white/90 border border-[#E7E5E0] px-3.5 py-2.5 text-sm text-[#0F172A] placeholder:text-[#475569] focus:outline-none focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/20"
-            />
-            <button
-              type="submit"
-              disabled={sendingLink}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#059669] hover:bg-[#047857] text-white text-sm font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <Mail className="h-4 w-4" />
-              {sendingLink ? 'Sending...' : 'Send Magic Link'}
-            </button>
-          </div>
-
-          {linkSent && (
-            <div className="rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] p-3 text-xs text-[#059669] flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-              <span>
-                Magic link sent to <strong>{email}</strong>. Open it on this
-                device to complete sign-in.
-              </span>
-            </div>
-          )}
-
-          {authError && (
-            <p className="text-xs text-[#D97706] font-medium">{authError}</p>
-          )}
-        </form>
+        <AuthForm layout="inline" dividerText="Or use email magic link" />
       </section>
     );
   }
@@ -324,7 +226,7 @@ export default function AccountAuthView({
                   {user.email}
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
-                  <Cloud className="h-3 w-3" />
+                  <Cloud className="h-3 w-3" aria-hidden="true" />
                   Synced to Cloud
                 </span>
               </div>
@@ -340,66 +242,80 @@ export default function AccountAuthView({
               type="button"
               onClick={onSyncNow}
               disabled={syncing}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-white/90 text-[#0F172A] border border-[#E7E5E0] hover:border-[#D6D3CD] shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-[#FAF9F6] text-[#0F172A] border border-[#E7E5E0] hover:border-[#D6D3CD] transition-all cursor-pointer disabled:opacity-50"
             >
               <RefreshCw
                 className={`h-3.5 w-3.5 text-[#059669] ${syncing ? 'animate-spin' : ''}`}
+                aria-hidden="true"
               />
               {syncing ? 'Syncing...' : 'Sync Now'}
             </button>
             <button
               type="button"
               onClick={onSignOut}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-white/90 text-[#0F172A] border border-[#E7E5E0] hover:border-[#FECDD3] hover:text-[#E11D48] shadow-sm transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-white text-[#475569] border border-[#E7E5E0] hover:text-[#E11D48] hover:border-[#FECDD3] transition-colors cursor-pointer"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
               Sign Out
             </button>
           </div>
         </div>
       </section>
 
-      {/* Per-Care-Space Browser Threshold Notification Toggles */}
-      <section className="rounded-2xl bg-white/80 backdrop-blur-md border border-[#E7E5E0] shadow-sm p-6 space-y-4">
+      {/* Automated Browser Push Alerts */}
+      <section className="rounded-2xl bg-white/80 backdrop-blur-md border border-[#E7E5E0] shadow-sm p-6 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-[#059669]" />
-            <h3 className="text-base font-bold text-[#0F172A]">
-              Browser Threshold Alerts
-            </h3>
+          <div>
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-[#059669]" aria-hidden="true" />
+              <h2 className="text-base font-bold text-[#0F172A]">
+                Threshold Push Alerts
+              </h2>
+            </div>
+            <p className="text-xs text-[#475569] mt-1">
+              Get a browser notification only when a Care Space crosses above or
+              drops back below its safe AQI limit (checked hourly via OpenAQ).
+            </p>
           </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={handleEnableBrowserPush}
+              onClick={handleEnablePush}
               disabled={pushLoading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#059669] hover:bg-[#047857] text-white shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-[#059669] hover:bg-[#047857] text-white shadow-sm transition-colors cursor-pointer disabled:opacity-50"
             >
-              <Bell className="h-3.5 w-3.5" />
-              {pushEnabled ? 'Push Enabled' : 'Enable Browser Push Alerts'}
+              <Bell className="h-3.5 w-3.5" aria-hidden="true" />
+              {pushSubscribed
+                ? 'Device Subscribed'
+                : 'Enable Browser Push Alerts'}
             </button>
             <button
               type="button"
-              onClick={handleSendTestAlert}
+              onClick={handleTestPush}
               disabled={pushLoading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/90 text-[#0F172A] border border-[#E7E5E0] hover:border-[#D6D3CD] shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] hover:bg-[#D1FAE5] transition-colors cursor-pointer disabled:opacity-50"
             >
+              <Send className="h-3.5 w-3.5" aria-hidden="true" />
               Send Test Alert
             </button>
           </div>
         </div>
-        <p className="text-xs text-[#475569]">
-          Enable browser push on this device, then choose which Care Spaces
-          should alert you when live AQI crosses their Safe AQI Limit.
-        </p>
 
-        {pushStatusMsg && (
-          <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2 text-xs text-[#0F172A]">
-            {pushStatusMsg}
+        {pushStatus && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] px-3.5 py-2.5 text-xs text-[#0F172A]"
+          >
+            {pushStatus}
           </div>
         )}
 
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 pt-2 border-t border-[#E7E5E0]">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
+            Alerts Per Care Space
+          </div>
           {careSpaces.map((space) => {
             const enabled = Boolean(space.notifyEnabled);
             return (

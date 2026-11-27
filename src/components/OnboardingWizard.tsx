@@ -7,12 +7,12 @@ import {
   Building2,
   Check,
   GraduationCap,
-  Plus,
   Users,
   Wind,
-  X,
 } from 'lucide-react';
 import CitySelector from '@/components/CitySelector';
+import MultiSelectChips from '@/components/MultiSelectChips';
+import WizardModeDetails from '@/components/WizardModeDetails';
 import {
   EXISTING_PROTECTIONS,
   HEALTH_SENSITIVITIES,
@@ -33,8 +33,8 @@ interface OnboardingWizardProps {
 }
 
 const DEFAULT_SCHOOL: SchoolProfile = {
-  studentGroup: 'Middle & High (Ages 11-17)',
-  indoorSportsHall: 'Yes',
+  studentGroup: 'Primary (Ages 5-10)',
+  indoorSportsHall: 'No',
   outdoorSportsSchedule: 'Morning Assembly & PT',
 };
 
@@ -43,177 +43,6 @@ const DEFAULT_INDUSTRY: IndustryProfile = {
   shiftSchedule: 'Day Shift (9 AM - 6 PM)',
   dieselFleetUsage: 'Backup DG Only',
 };
-
-function toggleMulti(
-  current: string[],
-  item: string,
-  exclusiveItem?: string
-): string[] {
-  if (exclusiveItem && item === exclusiveItem) {
-    return [exclusiveItem];
-  }
-  const withoutExclusive = exclusiveItem
-    ? current.filter((v) => v !== exclusiveItem)
-    : [...current];
-
-  if (withoutExclusive.includes(item)) {
-    const next = withoutExclusive.filter((v) => v !== item);
-    if (next.length === 0 && exclusiveItem) {
-      return [exclusiveItem];
-    }
-    return next;
-  }
-  return [...withoutExclusive, item];
-}
-
-function MultiSelectSection({
-  title,
-  presets,
-  values,
-  onChange,
-  exclusiveItem,
-  placeholder,
-}: {
-  title: string;
-  presets: readonly string[];
-  values: string[];
-  onChange: (next: string[]) => void;
-  exclusiveItem?: string;
-  placeholder: string;
-}) {
-  const [addingCustom, setAddingCustom] = useState(false);
-  const [draft, setDraft] = useState('');
-
-  const presetSet = new Set(presets);
-  const customValues = values.filter((v) => !presetSet.has(v));
-
-  const commitCustom = () => {
-    const trimmed = draft.trim();
-    if (!trimmed) {
-      setAddingCustom(false);
-      return;
-    }
-    const withoutExclusive = exclusiveItem
-      ? values.filter((v) => v !== exclusiveItem)
-      : [...values];
-    if (!withoutExclusive.includes(trimmed)) {
-      onChange([...withoutExclusive, trimmed]);
-    }
-    setDraft('');
-    setAddingCustom(false);
-  };
-
-  const removeCustom = (item: string) => {
-    const next = values.filter((v) => v !== item);
-    if (next.length === 0 && exclusiveItem) {
-      onChange([exclusiveItem]);
-    } else {
-      onChange(next);
-    }
-  };
-
-  return (
-    <div className="space-y-2.5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
-          {title}
-        </h2>
-        <span className="text-[11px] font-medium text-[#475569]">
-          Select all that apply
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {presets.map((item) => {
-          const active = values.includes(item);
-          return (
-            <button
-              key={item}
-              type="button"
-              onClick={() => onChange(toggleMulti(values, item, exclusiveItem))}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium transition-all border cursor-pointer ${
-                active
-                  ? 'bg-[#059669] text-white border-[#059669] shadow-sm'
-                  : 'bg-[#FAF9F6] text-[#0F172A] border-[#E7E5E0] hover:border-[#D6D3CD]'
-              }`}
-            >
-              {active && <Check className="h-3.5 w-3.5 shrink-0" />}
-              <span>{item}</span>
-            </button>
-          );
-        })}
-
-        {customValues.map((item) => (
-          <span
-            key={item}
-            className="inline-flex items-center gap-1.5 pl-3.5 pr-2 py-2 rounded-full text-xs sm:text-sm font-medium bg-[#059669] text-white border border-[#059669] shadow-sm"
-          >
-            <span>{item}</span>
-            <button
-              type="button"
-              onClick={() => removeCustom(item)}
-              aria-label={`Remove ${item}`}
-              className="p-0.5 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-
-        {!addingCustom && (
-          <button
-            type="button"
-            onClick={() => setAddingCustom(true)}
-            className="inline-flex items-center gap-1 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium bg-white/80 text-[#475569] border border-dashed border-[#E7E5E0] hover:border-[#059669] hover:text-[#059669] transition-colors cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Other / Custom</span>
-          </button>
-        )}
-      </div>
-
-      {addingCustom && (
-        <div className="flex items-center gap-2 pt-1">
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                commitCustom();
-              } else if (e.key === 'Escape') {
-                setAddingCustom(false);
-                setDraft('');
-              }
-            }}
-            placeholder={placeholder}
-            autoFocus
-            className="flex-1 rounded-xl bg-white/90 border border-[#E7E5E0] px-3.5 py-2 text-xs sm:text-sm text-[#0F172A] placeholder:text-[#475569] focus:outline-none focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/20"
-          />
-          <button
-            type="button"
-            onClick={commitCustom}
-            className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-[#059669] hover:bg-[#047857] text-white text-xs font-medium transition-colors cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAddingCustom(false);
-              setDraft('');
-            }}
-            className="px-2.5 py-2 rounded-xl text-xs text-[#475569] hover:text-[#0F172A] cursor-pointer"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function OnboardingWizard({
   initialProfile,
@@ -319,7 +148,10 @@ export default function OnboardingWizard({
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FAF9F6] text-[#0F172A] flex items-center justify-center px-4 py-10">
+    <main
+      id="main-content"
+      className="relative min-h-screen overflow-hidden bg-[#FAF9F6] text-[#0F172A] flex items-center justify-center px-4 py-10"
+    >
       {/* Ambient Atmospheric Orbs */}
       <div
         aria-hidden="true"
@@ -335,7 +167,7 @@ export default function OnboardingWizard({
         <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-[#E7E5E0] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center text-[#059669]">
-              <Wind className="h-4 w-4" />
+              <Wind className="h-4 w-4" aria-hidden="true" />
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight text-[#0F172A]">
@@ -380,10 +212,14 @@ export default function OnboardingWizard({
                 </h2>
                 <CitySelector value={city} onChange={setCity} variant="full" />
                 <div className="pt-1">
-                  <label className="block text-xs font-medium text-[#475569] mb-1">
+                  <label
+                    htmlFor="onboarding-town"
+                    className="block text-xs font-medium text-[#475569] mb-1"
+                  >
                     Neighbourhood / Area (optional)
                   </label>
                   <input
+                    id="onboarding-town"
                     type="text"
                     value={town}
                     onChange={(e) => setTown(e.target.value)}
@@ -399,24 +235,9 @@ export default function OnboardingWizard({
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {[
-                    {
-                      id: 'personal' as const,
-                      title: 'Personal & Family',
-                      desc: 'Commute & home',
-                      icon: Users,
-                    },
-                    {
-                      id: 'school' as const,
-                      title: 'School & College',
-                      desc: 'Classes & games',
-                      icon: GraduationCap,
-                    },
-                    {
-                      id: 'industry' as const,
-                      title: 'Workplace & Site',
-                      desc: 'Shifts & team care',
-                      icon: Building2,
-                    },
+                    { id: 'personal' as const, title: 'Personal & Family', desc: 'Commute & home', icon: Users },
+                    { id: 'school' as const, title: 'School & College', desc: 'Classes & games', icon: GraduationCap },
+                    { id: 'industry' as const, title: 'Workplace & Site', desc: 'Shifts & team care', icon: Building2 },
                   ].map((item) => {
                     const Icon = item.icon;
                     const active = mode === item.id;
@@ -424,6 +245,7 @@ export default function OnboardingWizard({
                       <button
                         key={item.id}
                         type="button"
+                        aria-pressed={active}
                         onClick={() => setMode(item.id)}
                         className={`text-left rounded-xl p-3 border transition-all cursor-pointer ${
                           active
@@ -432,18 +254,11 @@ export default function OnboardingWizard({
                         }`}
                       >
                         <Icon
-                          className={`h-4 w-4 mb-1.5 ${
-                            active ? 'text-[#059669]' : 'text-[#475569]'
-                          }`}
+                          className={`h-4 w-4 mb-1.5 ${active ? 'text-[#059669]' : 'text-[#475569]'}`}
+                          aria-hidden="true"
                         />
-                        <div className="font-semibold text-xs sm:text-sm">
-                          {item.title}
-                        </div>
-                        <div
-                          className={`text-[11px] ${
-                            active ? 'text-[#059669]/80' : 'text-[#475569]'
-                          }`}
-                        >
+                        <div className="font-semibold text-xs sm:text-sm">{item.title}</div>
+                        <div className={`text-[11px] ${active ? 'text-[#059669]/80' : 'text-[#475569]'}`}>
                           {item.desc}
                         </div>
                       </button>
@@ -452,7 +267,7 @@ export default function OnboardingWizard({
                 </div>
               </div>
 
-              <MultiSelectSection
+              <MultiSelectChips
                 title="When You Step Out"
                 presets={STEP_OUT_WINDOWS}
                 values={stepOutWindows}
@@ -460,9 +275,7 @@ export default function OnboardingWizard({
                 placeholder="e.g., Night shift 11 PM–7 AM"
               />
 
-              {stepError && (
-                <p className="text-xs text-[#E11D48] font-medium">{stepError}</p>
-              )}
+              {stepError && <p role="alert" className="text-xs text-[#E11D48] font-medium">{stepError}</p>}
 
               <div className="flex justify-end pt-1">
                 <button
@@ -471,7 +284,7 @@ export default function OnboardingWizard({
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#059669] hover:bg-[#047857] text-white font-semibold text-sm shadow-sm transition-colors cursor-pointer"
                 >
                   Next: Travel &amp; Household
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -480,15 +293,14 @@ export default function OnboardingWizard({
           {/* STEP 2 */}
           {step === 2 && (
             <div className="space-y-6">
-              <MultiSelectSection
+              <MultiSelectChips
                 title="How You Travel"
                 presets={TRAVEL_MODES}
                 values={travelModes}
                 onChange={setTravelModes}
                 placeholder="e.g., Electric scooter, Company shuttle"
               />
-
-              <MultiSelectSection
+              <MultiSelectChips
                 title="Who Lives at Home"
                 presets={HOUSEHOLD_MEMBERS}
                 values={householdMembers}
@@ -496,8 +308,7 @@ export default function OnboardingWizard({
                 exclusiveItem="Just Me"
                 placeholder="e.g., Toddler with nebulizer, Pet dog"
               />
-
-              <MultiSelectSection
+              <MultiSelectChips
                 title="Health Sensitivities"
                 presets={HEALTH_SENSITIVITIES}
                 values={healthSensitivities}
@@ -506,90 +317,23 @@ export default function OnboardingWizard({
                 placeholder="e.g., Mild bronchitis, Dry cough at night"
               />
 
-              {mode === 'school' && (
-                <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] p-4 space-y-2.5">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
-                    School / Campus Details
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {(
-                      [
-                        'Primary (Ages 5-10)',
-                        'Middle & High (Ages 11-17)',
-                        'College & University',
-                      ] as const
-                    ).map((g) => {
-                      const active = school.studentGroup === g;
-                      return (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() =>
-                            setSchool((s) => ({ ...s, studentGroup: g }))
-                          }
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
-                            active
-                              ? 'bg-[#059669] text-white border-[#059669]'
-                              : 'bg-white text-[#0F172A] border-[#E7E5E0]'
-                          }`}
-                        >
-                          {g}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <WizardModeDetails
+                mode={mode}
+                school={school}
+                industry={industry}
+                onChangeSchool={setSchool}
+                onChangeIndustry={setIndustry}
+              />
 
-              {mode === 'industry' && (
-                <div className="rounded-xl bg-[#FAF9F6] border border-[#E7E5E0] p-4 space-y-2.5">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
-                    Workplace / Site Details
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {(
-                      [
-                        'Office & IT Park',
-                        'Manufacturing & Warehouse',
-                        'Construction & Logistics',
-                      ] as const
-                    ).map((f) => {
-                      const active = industry.facilityType === f;
-                      return (
-                        <button
-                          key={f}
-                          type="button"
-                          onClick={() =>
-                            setIndustry((ind) => ({ ...ind, facilityType: f }))
-                          }
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
-                            active
-                              ? 'bg-[#059669] text-white border-[#059669]'
-                              : 'bg-white text-[#0F172A] border-[#E7E5E0]'
-                          }`}
-                        >
-                          {f}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {stepError && (
-                <p className="text-xs text-[#E11D48] font-medium">{stepError}</p>
-              )}
+              {stepError && <p role="alert" className="text-xs text-[#E11D48] font-medium">{stepError}</p>}
 
               <div className="flex items-center justify-between pt-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    setStepError('');
-                    setStep(1);
-                  }}
+                  onClick={() => { setStepError(''); setStep(1); }}
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/80 border border-[#E7E5E0] hover:border-[#D6D3CD] text-[#0F172A] text-sm font-medium transition-colors cursor-pointer"
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                   Back
                 </button>
                 <button
@@ -598,7 +342,7 @@ export default function OnboardingWizard({
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#059669] hover:bg-[#047857] text-white font-semibold text-sm shadow-sm transition-colors cursor-pointer"
                 >
                   Next: Home &amp; Protection
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -607,15 +351,14 @@ export default function OnboardingWizard({
           {/* STEP 3 */}
           {step === 3 && (
             <div className="space-y-6">
-              <MultiSelectSection
+              <MultiSelectChips
                 title="Home Surroundings"
                 presets={HOME_SURROUNDINGS}
                 values={homeSurroundings}
                 onChange={setHomeSurroundings}
                 placeholder="e.g., Stone crusher unit nearby, Open drain"
               />
-
-              <MultiSelectSection
+              <MultiSelectChips
                 title="Protection You Already Have"
                 presets={EXISTING_PROTECTIONS}
                 values={existingProtection}
@@ -624,20 +367,15 @@ export default function OnboardingWizard({
                 placeholder="e.g., Wet cloth on window, Indoor plants"
               />
 
-              {stepError && (
-                <p className="text-xs text-[#E11D48] font-medium">{stepError}</p>
-              )}
+              {stepError && <p role="alert" className="text-xs text-[#E11D48] font-medium">{stepError}</p>}
 
               <div className="flex items-center justify-between pt-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    setStepError('');
-                    setStep(2);
-                  }}
+                  onClick={() => { setStepError(''); setStep(2); }}
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/80 border border-[#E7E5E0] hover:border-[#D6D3CD] text-[#0F172A] text-sm font-medium transition-colors cursor-pointer"
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                   Back
                 </button>
                 <button
@@ -645,7 +383,7 @@ export default function OnboardingWizard({
                   onClick={handleFinish}
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#059669] hover:bg-[#047857] text-white font-semibold text-sm shadow-sm transition-colors cursor-pointer"
                 >
-                  <Check className="h-4 w-4" />
+                  <Check className="h-4 w-4" aria-hidden="true" />
                   Build My Daily Plan
                 </button>
               </div>
@@ -653,6 +391,6 @@ export default function OnboardingWizard({
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

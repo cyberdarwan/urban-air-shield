@@ -6,6 +6,7 @@ import {
   evaluateThresholdFlip,
 } from '@/lib/alert-evaluator';
 import { fetchLiveCityAqi } from '@/lib/live-aqi';
+import { timingSafeBearerMatch } from '@/lib/security';
 
 interface CareSpaceAlertRow {
   id: string;
@@ -29,7 +30,7 @@ async function handleCheckAir(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get('authorization');
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!timingSafeBearerMatch(authHeader, cronSecret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

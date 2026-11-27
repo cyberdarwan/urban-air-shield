@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextRequest } from 'next/server';
 import type { AqiResponse, ChatMessage, UserProfile } from '@/types/air-quality';
 
@@ -7,6 +8,28 @@ interface RateBucket {
 }
 
 const rateBuckets = new Map<string, RateBucket>();
+
+/**
+ * Clears in-memory rate-limit buckets (used by automated tests for determinism).
+ */
+export function clearRateLimitBuckets(): void {
+  rateBuckets.clear();
+}
+
+/**
+ * Performs a constant-time comparison of an `Authorization: Bearer <secret>` header
+ * against an expected secret using SHA-256 digests to avoid timing and length leaks.
+ */
+export function timingSafeBearerMatch(
+  authHeader: string | null,
+  expectedSecret: string | undefined
+): boolean {
+  if (!authHeader || !expectedSecret) return false;
+  const expectedHeader = `Bearer ${expectedSecret}`;
+  const providedDigest = createHash('sha256').update(authHeader).digest();
+  const expectedDigest = createHash('sha256').update(expectedHeader).digest();
+  return timingSafeEqual(providedDigest, expectedDigest);
+}
 
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');

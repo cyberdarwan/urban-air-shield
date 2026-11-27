@@ -38,16 +38,23 @@ export default function ExpertChatBox({
   const [sending, setSending] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    inputRef.current?.focus();
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus();
+    };
   }, [open]);
 
   const starterQuestions = useMemo(() => {
@@ -152,7 +159,11 @@ export default function ExpertChatBox({
   return (
     <>
       {shareToast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#1C1B18] text-white text-xs font-medium shadow-md">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#1C1B18] text-white text-xs font-medium shadow-md"
+        >
           {shareToast}
         </div>
       )}
@@ -161,6 +172,7 @@ export default function ExpertChatBox({
       {open && (
         <section
           role="dialog"
+          aria-modal="true"
           aria-label="Ask the Air Expert"
           className="fixed bottom-36 right-6 z-40 w-[calc(100vw-3rem)] sm:w-[380px] max-h-[68vh] flex flex-col rounded-2xl bg-white/90 backdrop-blur-xl border border-[#E7E5E0] shadow-xl overflow-hidden"
         >
@@ -276,7 +288,9 @@ export default function ExpertChatBox({
             className="p-3 border-t border-[#E7E5E0] bg-white/90 flex items-center gap-2"
           >
             <input
+              ref={inputRef}
               type="text"
+              aria-label="Ask the Air Expert a question"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={

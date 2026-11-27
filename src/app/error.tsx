@@ -14,7 +14,10 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   }, [error]);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#FAF9F6] text-[#0F172A] flex items-center justify-center px-4 py-12">
+    <main
+      id="main-content"
+      className="relative min-h-screen overflow-hidden bg-[#FAF9F6] text-[#0F172A] flex items-center justify-center px-4 py-12"
+    >
       {/* Ambient Atmospheric Daylight Orbs */}
       <div
         aria-hidden="true"

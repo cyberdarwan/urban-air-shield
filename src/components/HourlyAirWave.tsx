@@ -247,6 +247,8 @@ export default function HourlyAirWave({
 
       {/* Slim Inline Inspector Bar */}
       <div
+        role="status"
+        aria-live="polite"
         className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3.5 py-2 text-xs transition-colors ${inspectorTone}`}
       >
         <div className="font-semibold tabular-nums">

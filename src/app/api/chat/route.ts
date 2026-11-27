@@ -2,50 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isGrapCity } from '@/lib/aqi-utils';
 import { generateWithGeminiWaterfall, getGeminiClient } from '@/lib/gemini';
 import {
+  buildChatFallback,
+  collectAllCustomEntries,
+} from '@/lib/recommendation-fallback';
+import {
   checkRateLimit,
   isPromptInjectionAttempt,
   safeJsonBody,
 } from '@/lib/security';
 import { validateChatPayload } from '@/lib/validators';
-import {
-  EXISTING_PROTECTIONS,
-  HEALTH_SENSITIVITIES,
-  HOME_SURROUNDINGS,
-  HOUSEHOLD_MEMBERS,
-  STEP_OUT_WINDOWS,
-  TRAVEL_MODES,
-  type AqiResponse,
-  type UserProfile,
-} from '@/types/air-quality';
-
-function collectCustomEntries(profile: UserProfile): string[] {
-  const check = (vals: string[] | undefined, presets: readonly string[]) => {
-    const set = new Set(presets);
-    return (vals || []).filter((v) => !set.has(v));
-  };
-  return [
-    ...check(profile.stepOutWindows, STEP_OUT_WINDOWS),
-    ...check(profile.travelModes, TRAVEL_MODES),
-    ...check(profile.householdMembers, HOUSEHOLD_MEMBERS),
-    ...check(profile.healthSensitivities, HEALTH_SENSITIVITIES),
-    ...check(profile.homeSurroundings, HOME_SURROUNDINGS),
-    ...check(profile.existingProtection, EXISTING_PROTECTIONS),
-  ];
-}
-
-function buildChatFallback(profile: UserProfile, aqiData: AqiResponse): string {
-  const city = profile.location?.city || 'your city';
-  const loc = profile.location?.town ? `${profile.location.town}, ${city}` : city;
-  const travel = (profile.travelModes || []).join(', ') || 'daily commute';
-  const gear = (profile.existingProtection || []).join(', ') || 'everyday zero-cost habits';
-  const custom = collectCustomEntries(profile);
-  const customNote =
-    custom.length > 0
-      ? ` Keeping your specific situation (${custom.join(', ')}) in mind, keep a clean mask or double-layered cotton scarf handy during peak hours.`
-      : '';
-
-  return `Right now in ${loc}, AQI is ${aqiData.aqi} (${aqiData.category}) with PM2.5 at ${aqiData.pollutants.pm25} µg/m³. Since morning (6:00 AM – 9:30 AM) and evening (7:00 PM – 11:00 PM) cool air traps smoke close to the road, try to bunch errands between 12:00 PM – 4:00 PM when the sun clears the air. For your ${travel} routine using ${gear}, protect your nose and mouth in heavy traffic, keep car/cab AC on recirculation, and rinse your face and nose with plain water as soon as you get indoors.${customNote}`;
-}
+import type { AqiResponse, UserProfile } from '@/types/air-quality';
 
 export async function POST(request: NextRequest) {
   let profile: UserProfile | null = null;
@@ -63,7 +29,6 @@ export async function POST(request: NextRequest) {
     }
 
     const bodyResult = await safeJsonBody<unknown>(request, 64_000);
-
     if (!bodyResult.ok) {
       return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
     }
@@ -102,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const city = profile.location?.city || 'the city';
     const grapRegion = isGrapCity(city);
-    const customEntries = collectCustomEntries(profile);
+    const customEntries = collectAllCustomEntries(profile).all;
 
     const systemInstruction = `You are a deeply knowledgeable, street-smart Indian environmental doctor talking warmly and clearly to a neighbor or family member.
 
